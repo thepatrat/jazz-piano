@@ -9,6 +9,7 @@ import { saveMode, loadMode, kvGet, kvSet } from './db.js';
 import { buildKeyboard, paintKey, clearDemo } from './ui/keyboard.js';
 import { initMIDI } from './midi.js';
 import { toggleExplain, refreshExplain } from './ui/explain.js';
+import * as transport from './transport.js';
 import { renderDetect } from './modes/detect.js';
 import { initDrill, nextDrill, checkDrill, stopDrill, drillNoteOnTimestamp } from './modes/drill.js';
 import { renderExerciseList, checkExercise, exerciseNoteOn } from './modes/exercises.js';
@@ -56,6 +57,45 @@ function setMode(mo) {
   saveMode(mo);
 }
 
+// ---- global metronome bar ----
+function wireMetronome() {
+  const toggle = document.getElementById('metroToggle');
+  const bpmInput = document.getElementById('metroBpm');
+  const dots = document.querySelectorAll('#metroBeats .metro-dot');
+
+  function updateToggleUI() {
+    const on = transport.isRunning();
+    toggle.classList.toggle('on', on);
+    document.getElementById('metroIcon').textContent = on ? '⏸' : '▶';
+    if (!on) dots.forEach(d => { d.classList.remove('lit', 'accent'); });
+  }
+
+  toggle.addEventListener('click', () => {
+    if (transport.isRunning()) {
+      transport.stop();
+    } else {
+      const bpm = parseInt(bpmInput.value, 10) || 80;
+      transport.start(bpm);
+    }
+    updateToggleUI();
+  });
+
+  bpmInput.addEventListener('change', () => {
+    const bpm = parseInt(bpmInput.value, 10) || 80;
+    bpmInput.value = bpm;
+    if (transport.isRunning()) transport.setBpm(bpm);
+  });
+
+  // light the dots on each beat (4/4 cycle)
+  transport.onBeat(({ beat }) => {
+    const idx = beat % 4;
+    dots.forEach((d, i) => {
+      d.classList.toggle('lit', i === idx);
+      d.classList.toggle('accent', i === idx && idx === 0);
+    });
+  });
+}
+
 // ---- wire static controls ----
 function wireControls() {
   document.querySelectorAll('.modes button').forEach(btn => {
@@ -63,6 +103,7 @@ function wireControls() {
   });
   document.getElementById('explainBtn').addEventListener('click', toggleExplain);
   document.getElementById('explainBtnD').addEventListener('click', toggleExplain);
+  wireMetronome();
 }
 
 // ---- startup ----

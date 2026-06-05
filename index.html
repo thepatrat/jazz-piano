@@ -31,7 +31,19 @@
       <h1>Jazz<span>Buddy</span></h1>
       <div class="sub">Your free jazz piano practice partner. Connect your e-piano via USB MIDI and play.</div>
     </div>
-    <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">No MIDI device</span></div>
+    <div class="header-right">
+      <div class="metro-bar" id="metroBar">
+        <button class="metro-toggle" id="metroToggle" title="Start / stop metronome">
+          <span class="metro-icon" id="metroIcon">▶</span>
+        </button>
+        <div class="metro-beats" id="metroBeats">
+          <span class="metro-dot"></span><span class="metro-dot"></span><span class="metro-dot"></span><span class="metro-dot"></span>
+        </div>
+        <input type="number" class="metro-bpm" id="metroBpm" value="80" min="40" max="200" step="5" title="BPM">
+        <span class="metro-sig">4/4</span>
+      </div>
+      <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">No MIDI device</span></div>
+    </div>
   </header>
 
   <div class="modes">
