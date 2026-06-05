@@ -11,7 +11,7 @@ import { initMIDI } from './midi.js';
 import { toggleExplain, refreshExplain } from './ui/explain.js';
 import { renderDetect } from './modes/detect.js';
 import { initDrill, nextDrill, checkDrill, stopDrill, drillNoteOnTimestamp } from './modes/drill.js';
-import { renderExerciseList, checkExercise } from './modes/exercises.js';
+import { renderExerciseList, checkExercise, exerciseNoteOn } from './modes/exercises.js';
 import { renderScales, scaleNoteOn, stopScales } from './modes/scales.js';
 import { renderTheoryList } from './modes/theory.js';
 import { renderCircle } from './modes/circle.js';
@@ -93,8 +93,9 @@ async function start() {
     onNoteOn: (note, timestamp) => {
       activeNotes.add(note);
       paintKey(note, true);
-      // scales needs individual note-on events (sequential engine)
+      // sequential engines need individual note-on events
       if (app.mode === 'scales') scaleNoteOn(note, timestamp);
+      if (app.mode === 'exercises') exerciseNoteOn(note);
       // drill stores the timestamp for rhythm scoring
       if (app.mode === 'drill') drillNoteOnTimestamp(timestamp);
       onNotesChanged();

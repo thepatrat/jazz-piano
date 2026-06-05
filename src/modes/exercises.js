@@ -5,11 +5,13 @@
 //  Current step index per module persists to IndexedDB.
 // ============================================================
 import {
-  INV_NAMES, chordLabel, pcName, matchVoicing, voicingPitchClasses, chordMatchesTarget,
+  INV_NAMES, SCALE_DEFS, chordLabel, pcName, matchVoicing, voicingPitchClasses, chordMatchesTarget,
 } from '../theory.js';
 import { exState, activeNotes } from '../state.js';
 import { EXERCISE_MODULES } from '../data/modules.js';
 import { saveExerciseProgress, loadExerciseProgress } from '../db.js';
+import * as scaleEngine from '../scaleEngine.js';
+import { paintDemo, clearDemo } from '../ui/keyboard.js';
 
 export function renderExerciseList() {
   const list = document.getElementById('exList');
@@ -58,14 +60,16 @@ async function openExercise(id) {
     body = `<div class="ex-run-body"><div class="ex-desc" style="text-align:center;color:var(--muted)">Watch the lesson above, then practice freely — switch to Detect to check your voicings. Encode this into a drill anytime.</div></div>`;
   }
 
+  const videoHtml = m.videoId
+    ? `<div class="video-embed"><iframe src="https://www.youtube-nocookie.com/embed/${m.videoId}" title="lesson" allowfullscreen></iframe></div>`
+    : '';
+
   r.innerHTML = `
     <div class="runner-head">
       <button id="exBackBtn">← Back</button>
       <h3>${m.title}</h3>
     </div>
-    <div class="video-embed">
-      <iframe src="https://www.youtube-nocookie.com/embed/${m.videoId}" title="lesson" allowfullscreen></iframe>
-    </div>
+    ${videoHtml}
     ${body}`;
 
   document.getElementById('exBackBtn').addEventListener('click', closeExercise);
@@ -79,20 +83,36 @@ async function openExercise(id) {
 
 function closeExercise() {
   if (exState.module) saveExerciseProgress(exState.module.id, exState.idx);
+  scaleEngine.reset();
+  clearDemo();
   exState.module = null;
   document.getElementById('exRunner').style.display = 'none';
   document.getElementById('exRunner').innerHTML = ''; // stops the video
   document.getElementById('exListWrap').style.display = 'block';
 }
 
+function lightScaleGuide(rootPc, scaleId) {
+  clearDemo();
+  const def = SCALE_DEFS.find(d => d.id === scaleId);
+  if (!def) return;
+  for (let midi = 48; midi <= 84; midi++) {
+    const pc = midi % 12;
+    const ivIdx = def.iv.indexOf((pc - rootPc + 12) % 12);
+    if (ivIdx >= 0) paintDemo(midi, true, ivIdx === 0);
+  }
+}
+
 function renderExStep() {
   const { seq, idx, module } = exState;
   exState.revealed = false;
   const isVoicing = module && module.voicingMode;
+  const isScale = module && module.scaleMode;
   if (idx >= seq.length) {
+    clearDemo();
+    scaleEngine.reset();
     document.getElementById('exTarget').textContent = '✓ done';
     document.getElementById('exTarget').className = 'big flash-ok';
-    document.getElementById('exFeedback').textContent = 'All shapes complete — nice work.';
+    document.getElementById('exFeedback').textContent = 'All steps complete — nice work.';
     document.getElementById('exProg').textContent = '';
     const h = document.getElementById('exHint');
     if (h) h.textContent = '';
@@ -101,16 +121,23 @@ function renderExStep() {
   const step = seq[idx];
   document.getElementById('exProg').textContent = `step ${idx + 1} / ${seq.length}`;
   const t = document.getElementById('exTarget');
-  t.textContent = step.label ? '' : chordLabel(step);
   t.className = 'big';
   const fb = document.getElementById('exFeedback');
-  if (isVoicing) {
-    // show the chord symbol big, the human label below (it's longer)
+
+  if (isScale) {
+    const def = SCALE_DEFS.find(d => d.id === step.scaleId);
+    t.style.fontSize = '36px';
+    t.textContent = `${pcName(step.root)} ${def?.name || step.scaleId}`;
+    fb.textContent = `Play up then down — start on ${pcName(step.root)} (any octave)`;
+    scaleEngine.start(step.root, step.scaleId);
+    lightScaleGuide(step.root, step.scaleId);
+  } else if (isVoicing) {
     t.style.fontSize = '40px';
     t.textContent = chordLabel({ root: step.root, quality: step.quality });
     fb.textContent = step.label.split(' — ')[1] || '';
   } else {
     t.style.fontSize = '';
+    t.textContent = step.label ? '' : chordLabel(step);
     fb.textContent = step.tag ? '(' + step.tag + ' chord)' : '';
   }
   const h = document.getElementById('exHint');
@@ -122,14 +149,18 @@ function renderExStep() {
   const start = Math.floor(idx / groupSize) * groupSize;
   for (let i = start; i < Math.min(start + groupSize, seq.length); i++) {
     const s = document.createElement('span');
-    s.textContent = seq[i].label
-      ? INV_NAMES[seq[i].inversion].replace(' position', '').replace('inversion', 'inv')
-      : chordLabel(seq[i]);
+    if (seq[i].scaleId) {
+      s.textContent = seq[i].tag || pcName(seq[i].root);
+    } else if (seq[i].label) {
+      s.textContent = INV_NAMES[seq[i].inversion].replace(' position', '').replace('inversion', 'inv');
+    } else {
+      s.textContent = chordLabel(seq[i]);
+    }
     if (i < idx) s.className = 'done';
     else if (i === idx) s.className = 'cur';
     seqEl.appendChild(s);
   }
-  if (step.tag && isVoicing) {
+  if (step.tag) {
     document.getElementById('exProg').textContent += '  ·  ' + step.tag;
   }
 }
@@ -148,6 +179,38 @@ function exSkip() {
     exState.idx++;
     if (exState.module) saveExerciseProgress(exState.module.id, exState.idx);
     renderExStep();
+  }
+}
+
+// called per note-on for scale exercises (sequential engine)
+export function exerciseNoteOn(midiNote) {
+  if (!exState.module || !exState.module.scaleMode) return;
+  if (exState.idx >= exState.seq.length) return;
+  const result = scaleEngine.noteOn(midiNote);
+  if (result.event === 'wrong-start') {
+    const step = exState.seq[exState.idx];
+    document.getElementById('exFeedback').textContent = `Start on ${pcName(step.root)} (any octave)`;
+    return;
+  }
+  if (result.event === 'correct') {
+    const prog = document.getElementById('exHint');
+    const s = scaleEngine.state();
+    if (prog) prog.textContent = `${s.cursor} / ${s.total} notes`;
+    return;
+  }
+  if (result.event === 'wrong') {
+    const fb = document.getElementById('exFeedback');
+    fb.textContent = 'wrong note — keep going';
+    fb.style.color = 'var(--wrong)';
+    setTimeout(() => { if (fb) { fb.textContent = ''; fb.style.color = ''; } }, 600);
+    return;
+  }
+  if (result.event === 'complete') {
+    document.getElementById('exFeedback').textContent = '✓';
+    document.getElementById('exTarget').className = 'big flash-ok';
+    exState.idx++;
+    saveExerciseProgress(exState.module.id, exState.idx);
+    setTimeout(renderExStep, 600);
   }
 }
 

@@ -1,211 +1,101 @@
 // ============================================================
-//  modes/scales.js — Scale practice mode.
-//  Uses engine #3 (scaleEngine): play a scale ascending one octave
-//  then descending, starting on any octave. The next expected key
-//  glows on the keyboard; correct → advance, wrong → flash.
-//  Each (root × scaleId) is an SRS item (type:'scale').
+//  modes/scales.js — Scale REFERENCE view.
+//  Pick a root + scale type → see ALL the notes lit on the keyboard
+//  (root in orange, scale tones in green) with note names listed and
+//  a short explainer. This is the "learn" side; the "practice" side
+//  lives in Exercises as scale drill modules.
 // ============================================================
-import { SCALE_DEFS, ROOTS, NOTE_NAMES, pcName } from '../theory.js';
-import { activeNotes } from '../state.js';
-import * as engine from '../scaleEngine.js';
+import { SCALE_DEFS, NOTE_NAMES, pcName } from '../theory.js';
 import { paintDemo, clearDemo } from '../ui/keyboard.js';
-import {
-  scaleItemId, newSrsItem, gradeItem, Rating, humanizeUntil,
-} from '../srs.js';
-import { seedSrsItems, nextSrsItem, countDue, putSrsItem, logReview } from '../db.js';
-import * as transport from '../transport.js';
-import { scoreOnset, averageBucket, bucketEmoji, bucketToRating } from '../rhythmScore.js';
 
-let promptStart = 0;
-let hadError = false;
-let currentItem = null;
-let target = null;        // { rootPc, scaleId }
+let selectedRoot = 0;    // pitch class
 let selectedScale = 'major';
-let rhythmOn = false;
-let rhythmBuckets = [];   // per-note rhythm buckets for the current run
 
-// ---- SRS pool ----
-function poolItems() {
-  const items = [];
-  for (const root of ROOTS) {
-    const id = scaleItemId(root, selectedScale);
-    items.push(newSrsItem(id, 'scale', { root, scaleId: selectedScale }));
-  }
-  return items;
+const SCALE_INFO = {
+  'major':          'The bright, "happy" default. All other scales are measured against this one.',
+  'natural-minor':  'The "sad" scale — flats the 3rd, 6th, and 7th compared to major. The relative minor of the major scale two keys up.',
+  'dorian':         'Minor with a raised 6th — jazzy, mellow, slightly optimistic. The classic minor sound in jazz (think ii chord).',
+  'mixolydian':     'Major with a flat 7th — bluesy, dominant. The sound of the V7 chord. Great for blues and funk.',
+  'pentatonic-maj': 'Major minus the 4th and 7th — five notes, no tension. Universally melodic; hard to play a wrong note.',
+  'pentatonic-min': 'Minor minus the 2nd and 6th — the backbone of blues and rock soloing.',
+  'blues':          'Minor pentatonic plus the "blue note" (♯4/♭5). The soul of blues expression.',
+  'harmonic-minor': 'Natural minor with a raised 7th — dramatic, Middle-Eastern colour. Creates the V7→i pull in minor keys.',
+  'melodic-minor':  'Natural minor with raised 6th and 7th going up — smooth jazz minor. The basis for altered and lydian dominant scales.',
+};
+
+function getScaleNotes(rootPc, scaleId) {
+  const def = SCALE_DEFS.find(d => d.id === scaleId);
+  if (!def) return [];
+  return def.iv.map(iv => (rootPc + iv) % 12);
 }
-function poolIds() { return poolItems().map(i => i.id); }
 
-// ---- keyboard highlight ----
-function highlightNext() {
+function lightScale(rootPc, scaleId) {
   clearDemo();
-  const s = engine.state();
-  if (!s.active || s.done || s.cursor >= s.sequence.length) return;
-  const next = s.sequence[s.cursor];
-  paintDemo(next, true, false);
-  // also show where we are in the sequence: light completed notes dimly
-  // (reuse .demo for the next note — it's green, which reads as "play this")
-}
-
-// ---- note dispatch (called from main.js on every note-on) ----
-export function scaleNoteOn(midiNote, timestamp) {
-  const s = engine.state();
-  if (!s.active || s.done) return;
-  const result = engine.noteOn(midiNote);
-  if (result.event === 'wrong-start') {
-    document.getElementById('scFeedback').textContent = `Start on ${pcName(target.root)} (any octave)`;
-    return;
-  }
-  if (result.event === 'correct') {
-    if (rhythmOn && timestamp) {
-      rhythmBuckets.push(scoreOnset(timestamp).bucket);
+  const def = SCALE_DEFS.find(d => d.id === scaleId);
+  if (!def) return;
+  // light two octaves on the keyboard so the pattern is visible
+  for (let octave = 48; octave <= 84; octave++) {
+    const pc = octave % 12;
+    const ivIdx = def.iv.indexOf((pc - rootPc + 12) % 12);
+    if (ivIdx >= 0) {
+      paintDemo(octave, true, ivIdx === 0); // root = orange, others = green
     }
-    highlightNext();
-    updateProgress();
-    return;
-  }
-  if (result.event === 'wrong') {
-    hadError = true;
-    document.getElementById('scFeedback').textContent = 'wrong note — keep going';
-    document.getElementById('scFeedback').style.color = 'var(--wrong)';
-    setTimeout(() => {
-      const fb = document.getElementById('scFeedback');
-      if (fb) { fb.textContent = ''; fb.style.color = ''; }
-    }, 600);
-    return;
-  }
-  if (result.event === 'complete') {
-    clearDemo();
-    finishRun();
   }
 }
 
-// ---- grading + SRS ----
-async function finishRun() {
-  const elapsed = performance.now() - promptStart;
-  const s = engine.state();
-  let rating = s.errors > 3 ? Rating.Again
-    : s.errors > 0 || hadError ? Rating.Hard
-    : elapsed < 8000 ? Rating.Easy
-    : Rating.Good;
-
-  // factor in rhythm if active
-  let rhythmTag = '';
-  if (rhythmOn && rhythmBuckets.length) {
-    const avg = averageBucket(rhythmBuckets);
-    const rhythmRating = bucketToRating(avg);
-    rating = Math.min(rating, rhythmRating); // take the worse
-    rhythmTag = ` ${bucketEmoji(avg)}`;
-  }
-  const { item, log } = gradeItem(currentItem, rating);
-  currentItem = item;
-  await putSrsItem(item);
-  await logReview({ itemId: item.id, ts: Date.now(), rating, state: log.state, stability: log.stability, difficulty: log.difficulty });
-
-  const when = humanizeUntil(item.due);
-  const fb = document.getElementById('scFeedback');
-  fb.textContent = `✓ ${s.errors === 0 ? 'Clean run!' : s.errors + ' error' + (s.errors > 1 ? 's' : '')} — next in ${when}${rhythmTag}`;
-  fb.style.color = 'var(--accent2)';
-  updateDueCount();
-  setTimeout(nextScale, 1200);
+function intervalLabel(iv) {
+  const names = { 0:'R', 1:'♭2', 2:'2', 3:'♭3', 4:'3', 5:'4', 6:'♭5', 7:'5', 8:'♭6', 9:'6', 10:'♭7', 11:'7' };
+  return names[iv] || iv;
 }
 
-// ---- advance to next due scale ----
-export async function nextScale() {
-  await seedSrsItems(poolItems());
-  const item = await nextSrsItem(poolIds());
-  currentItem = item;
-  target = item ? item.payload : null;
-  hadError = false;
-  rhythmBuckets = [];
-  promptStart = performance.now();
-
-  if (target) engine.start(target.root, target.scaleId);
-
-  const el = document.getElementById('scTarget');
-  el.textContent = target ? `${pcName(target.root)} ${SCALE_DEFS.find(d => d.id === target.scaleId)?.name || target.scaleId}` : '—';
-  el.className = 'big';
-  el.style.fontSize = '42px';
-  document.getElementById('scFeedback').textContent = target ? `Play ascending then descending — start on ${pcName(target.root)}` : '';
-  document.getElementById('scFeedback').style.color = '';
-  highlightNext();
-  updateProgress();
-  updateDueCount();
-}
-
-function skipScale() {
-  if (currentItem && !engine.state().done) {
-    const { item, log } = gradeItem(currentItem, Rating.Again);
-    currentItem = item;
-    putSrsItem(item);
-    logReview({ itemId: item.id, ts: Date.now(), rating: Rating.Again, state: log.state, stability: log.stability, difficulty: log.difficulty });
-  }
-  nextScale();
-}
-
-// ---- progress + due ----
-function updateProgress() {
-  const s = engine.state();
-  const el = document.getElementById('scProgress');
-  if (!el) return;
-  if (s.total === 0) { el.textContent = ''; return; }
-  const pct = Math.round((s.cursor / s.total) * 100);
-  el.textContent = `${s.cursor} / ${s.total} notes · ${pct}%`;
-}
-async function updateDueCount() {
-  const n = await countDue(poolIds());
-  const el = document.getElementById('scDue');
-  if (el) el.textContent = n;
-}
-
-// ---- render ----
-export async function renderScales() {
+function render() {
   const view = document.getElementById('scalesView');
+  const def = SCALE_DEFS.find(d => d.id === selectedScale);
+  const pcs = getScaleNotes(selectedRoot, selectedScale);
+  const noteList = pcs.map((pc, i) => {
+    const iv = def.iv[i];
+    const isRoot = iv === 0;
+    return `<span class="sc-note ${isRoot ? 'root' : ''}">${pcName(pc)}<span class="sc-deg">${intervalLabel(iv)}</span></span>`;
+  }).join('');
+
+  const rootOpts = Array.from({ length: 12 }, (_, pc) =>
+    `<option value="${pc}" ${pc === selectedRoot ? 'selected' : ''}>${NOTE_NAMES[pc]}</option>`).join('');
   const scaleOpts = SCALE_DEFS.map(d =>
     `<option value="${d.id}" ${d.id === selectedScale ? 'selected' : ''}>${d.name}</option>`).join('');
+  const info = SCALE_INFO[selectedScale] || '';
+
   view.innerHTML = `
-    <div class="label">Play the scale — up one octave, then down</div>
-    <div class="big" id="scTarget" style="font-size:42px">—</div>
-    <div class="prompt-target" id="scFeedback"></div>
-    <div class="notes-played" id="scProgress"></div>
-    <div class="drill-stats">
-      <div><b id="scDue">0</b>due now</div>
+    <div class="sc-controls">
+      <select id="scRoot">${rootOpts}</select>
+      <select id="scType">${scaleOpts}</select>
     </div>
-    <div class="controls">
-      <select id="scScaleSelect">${scaleOpts}</select>
-      <button id="scSkip">Skip ⟳</button>
-      <label class="rhythm-toggle"><input type="checkbox" id="scRhythm"> Play in time</label>
-      <div class="bpm-group" id="scBpmGroup" style="display:none;">
-        <label>BPM <input type="number" id="scBpm" value="80" min="40" max="200" step="5"></label>
-      </div>
-    </div>`;
+    <div class="sc-title">${pcName(selectedRoot)} ${def?.name || selectedScale}</div>
+    <div class="sc-desc">${info}</div>
+    <div class="sc-notes">${noteList}</div>
+    <div class="sc-formula">${def.iv.map(intervalLabel).join(' — ')}</div>
+    <div class="sc-hint">Scale notes are highlighted on the keyboard below. <span class="sw o"></span> root <span class="sw g"></span> scale tones. Practice this scale in the <b>Exercises</b> tab.</div>`;
 
-  document.getElementById('scScaleSelect').addEventListener('change', e => {
+  document.getElementById('scRoot').addEventListener('change', e => {
+    selectedRoot = +e.target.value;
+    lightScale(selectedRoot, selectedScale);
+    render();
+  });
+  document.getElementById('scType').addEventListener('change', e => {
     selectedScale = e.target.value;
-    nextScale();
-  });
-  document.getElementById('scSkip').addEventListener('click', skipScale);
-  document.getElementById('scRhythm')?.addEventListener('change', () => {
-    rhythmOn = document.getElementById('scRhythm').checked;
-    const bg = document.getElementById('scBpmGroup');
-    if (bg) bg.style.display = rhythmOn ? 'flex' : 'none';
-    if (rhythmOn) {
-      const bpm = parseInt(document.getElementById('scBpm')?.value, 10) || 80;
-      transport.start(bpm);
-    } else {
-      transport.stop();
-    }
-  });
-  document.getElementById('scBpm')?.addEventListener('change', () => {
-    if (rhythmOn && transport.isRunning()) {
-      transport.setBpm(parseInt(document.getElementById('scBpm').value, 10) || 80);
-    }
+    lightScale(selectedRoot, selectedScale);
+    render();
   });
 
-  await nextScale();
+  lightScale(selectedRoot, selectedScale);
+}
+
+export function renderScales() {
+  render();
 }
 
 export function stopScales() {
-  engine.reset();
   clearDemo();
-  if (rhythmOn) transport.stop();
 }
+
+// keep these exports so main.js doesn't break (they're now no-ops)
+export function scaleNoteOn() {}

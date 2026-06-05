@@ -8,7 +8,7 @@
 //  NOTE (HANDOFF.md §6): source URLs / videoIds below are placeholders.
 //  Swap in the real Keithson / Mangold links when available.
 // ============================================================
-import { CIRCLE_OF_FOURTHS, INV_NAMES, drop2Voicing } from '../theory.js';
+import { CIRCLE_OF_FOURTHS, INV_NAMES, drop2Voicing, SCALE_DEFS } from '../theory.js';
 
 export const EXERCISE_MODULES = [
   {
@@ -66,5 +66,52 @@ export const EXERCISE_MODULES = [
     source: { label: 'Example — link-only module', url: 'https://www.youtube.com/watch?v=NB4MoWjW-Tw' },
     videoId: 'NB4MoWjW-Tw',
     desc: 'A Level-0 module: just the embedded video plus a note on what to practice. No generated drill yet — but you could "upgrade" this later by encoding the voicing shapes. Watch, then try the left-hand 3-7-9 shells in a few keys.',
+  },
+  // ---- SCALE DRILL EXERCISES ----
+  {
+    id: 'scale-major-all-keys',
+    title: 'Major scales — all 12 keys',
+    level: 2,
+    scaleMode: true,
+    source: { label: 'Jazz Buddy — Scale Practice', url: '#' },
+    desc: 'Play the major scale ascending one octave then descending, through every key around the circle of fourths. The full scale is highlighted on the keyboard as a guide — just follow the green notes.',
+    generate() {
+      return CIRCLE_OF_FOURTHS.map(pc => ({
+        root: pc, scaleId: 'major', tag: `Key of ${['C','F','B♭','E♭','A♭','D♭','G♭','B','E','A','D','G'][CIRCLE_OF_FOURTHS.indexOf(pc)]}`,
+      }));
+    },
+  },
+  {
+    id: 'scale-natural-minor-all-keys',
+    title: 'Natural minor scales — all 12 keys',
+    level: 2,
+    scaleMode: true,
+    source: { label: 'Jazz Buddy — Scale Practice', url: '#' },
+    desc: 'The natural minor (Aeolian mode) through all keys. The darker counterpart to the major scale — flats the 3rd, 6th, and 7th.',
+    generate() {
+      return CIRCLE_OF_FOURTHS.map(pc => ({ root: pc, scaleId: 'natural-minor', tag: `${['C','F','B♭','E♭','A♭','D♭','G♭','B','E','A','D','G'][CIRCLE_OF_FOURTHS.indexOf(pc)]}m` }));
+    },
+  },
+  {
+    id: 'scale-dorian-all-keys',
+    title: 'Dorian scales — all 12 keys',
+    level: 2,
+    scaleMode: true,
+    source: { label: 'Jazz Buddy — Scale Practice', url: '#' },
+    desc: 'The jazz minor sound — Dorian mode through all keys. Minor with a raised 6th; the scale of the ii chord.',
+    generate() {
+      return CIRCLE_OF_FOURTHS.map(pc => ({ root: pc, scaleId: 'dorian', tag: `${['C','F','B♭','E♭','A♭','D♭','G♭','B','E','A','D','G'][CIRCLE_OF_FOURTHS.indexOf(pc)]} Dorian` }));
+    },
+  },
+  {
+    id: 'scale-blues-all-keys',
+    title: 'Blues scales — all 12 keys',
+    level: 2,
+    scaleMode: true,
+    source: { label: 'Jazz Buddy — Scale Practice', url: '#' },
+    desc: 'The blues scale through all keys. Minor pentatonic plus the blue note (♯4/♭5) — the soul of blues expression.',
+    generate() {
+      return CIRCLE_OF_FOURTHS.map(pc => ({ root: pc, scaleId: 'blues', tag: `${['C','F','B♭','E♭','A♭','D♭','G♭','B','E','A','D','G'][CIRCLE_OF_FOURTHS.indexOf(pc)]} Blues` }));
+    },
   },
 ];
