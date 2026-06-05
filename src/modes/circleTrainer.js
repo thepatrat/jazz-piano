@@ -13,7 +13,7 @@ import { detectChord, progressionChordMatches, chordLabel } from '../theory.js';
 import { paintDemo, clearDemo } from '../ui/keyboard.js';
 import {
   nodePos, radialPos, placementPoint, chordPlacement, edgePoint,
-  NR, NUM_R, ringMarkup, nodesMarkup, arrowDefs,
+  NR_MAJ, NR_MIN, NUM_R, ringMarkup, nodesMarkup, arrowDefs,
 } from '../ui/circleGeom.js';
 import { CIRCLE_FIFTHS } from '../data/circle.js';
 import { PROGRESSIONS, materialize, noteName } from '../data/progressions.js';
@@ -68,35 +68,30 @@ function commit() {
 // ---- drawing ----
 // arrow between two chord placements; skipped when they share a slot
 function arrowChord(a, b, cls) {
-  if (a.index === b.index) return '';
+  if (a.index === b.index && a.inner === b.inner) return '';
   const pa = placementPoint(a.index, a.inner);
   const pb = placementPoint(b.index, b.inner);
-  const p1 = edgePoint(pa.x, pa.y, pb.x, pb.y, a.inner ? 11 : NR + 3);
-  const p2 = edgePoint(pb.x, pb.y, pa.x, pa.y, b.inner ? 11 : NR + 9);
+  const rA = a.inner ? NR_MIN + 3 : NR_MAJ + 3;
+  const rB = b.inner ? NR_MIN + 6 : NR_MAJ + 6;
+  const p1 = edgePoint(pa.x, pa.y, pb.x, pb.y, rA);
+  const p2 = edgePoint(pb.x, pb.y, pa.x, pa.y, rB);
   return `<line class="${cls}" x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" marker-end="url(#cfArrow)"></line>`;
 }
 
-// node ring states (majors) + inner dots (minors); `cur` = chord to highlight
+// highlight nodes on the double ring for a set of chords
 function renderMarks(chords, cur, doneOf) {
-  const majorIdx = new Set(chords.filter(c => !c.inner).map(c => c.index));
+  const majSet = new Set(chords.filter(c => !c.inner).map(c => c.index));
+  const minSet = new Set(chords.filter(c => c.inner).map(c => c.index));
   document.querySelectorAll('#cfSvgT .cf-node').forEach(n => {
     const j = +n.dataset.i;
-    n.classList.toggle('on', majorIdx.has(j));
-    n.classList.toggle('cur', !!cur && !cur.inner && cur.index === j);
+    const type = n.dataset.type;
+    const isMaj = type === 'maj';
+    const inSet = isMaj ? majSet.has(j) : minSet.has(j);
+    const isCur = !!cur && ((isMaj && !cur.inner && cur.index === j) || (!isMaj && cur.inner && cur.index === j));
+    n.classList.toggle('on', inSet);
+    n.classList.toggle('cur', isCur);
   });
-
-  let s = '';
-  // inner minor dots (one per slot)
-  const seenDot = new Set();
-  chords.forEach((c, i) => {
-    if (!c.inner || seenDot.has(c.index)) return;
-    seenDot.add(c.index);
-    const p = placementPoint(c.index, true);
-    const isCur = cur && cur.inner && cur.index === c.index;
-    const done = doneOf ? doneOf(i) : false;
-    s += `<circle class="cf-minor-dot${isCur ? ' cur' : ''}${done ? ' done' : ''}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="9"></circle>`;
-  });
-  return s;
+  return ''; // no more separate minor dots — they're real nodes now
 }
 
 // roman numerals outside the rim (dedupe by slot+numeral, stack if a slot repeats)
