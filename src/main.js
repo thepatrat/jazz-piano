@@ -12,6 +12,7 @@ import { toggleExplain, refreshExplain } from './ui/explain.js';
 import { renderDetect } from './modes/detect.js';
 import { initDrill, nextDrill, checkDrill } from './modes/drill.js';
 import { renderExerciseList, checkExercise } from './modes/exercises.js';
+import { renderScales, scaleNoteOn, stopScales } from './modes/scales.js';
 import { renderTheoryList } from './modes/theory.js';
 import { renderCircle } from './modes/circle.js';
 import { circleNoteChanged } from './modes/circleTrainer.js';
@@ -29,18 +30,22 @@ function onNotesChanged() {
 function setMode(mo) {
   app.mode = mo;
   clearDemo(); // drop any keyboard highlights (Theory/Circle) when switching
+  stopScales(); // clean up sequential engine when leaving Scales
   document.getElementById('mDetect').classList.toggle('active', mo === 'detect');
   document.getElementById('mDrill').classList.toggle('active', mo === 'drill');
   document.getElementById('mExercises').classList.toggle('active', mo === 'exercises');
+  document.getElementById('mScales').classList.toggle('active', mo === 'scales');
   document.getElementById('mTheory').classList.toggle('active', mo === 'theory');
   document.getElementById('mCircle').classList.toggle('active', mo === 'circle');
   document.getElementById('detectView').style.display = mo === 'detect' ? 'block' : 'none';
   document.getElementById('drillView').style.display = mo === 'drill' ? 'block' : 'none';
   document.getElementById('exercisesView').style.display = mo === 'exercises' ? 'block' : 'none';
+  document.getElementById('scalesView').style.display = mo === 'scales' ? 'block' : 'none';
   document.getElementById('theoryView').style.display = mo === 'theory' ? 'block' : 'none';
   document.getElementById('circleView').style.display = mo === 'circle' ? 'block' : 'none';
   if (mo === 'drill' && !drill.target) nextDrill();
   if (mo === 'exercises') renderExerciseList();
+  if (mo === 'scales') renderScales();
   if (mo === 'theory') renderTheoryList();
   if (mo === 'circle') renderCircle();
   // sync explainer panels to current open-state
@@ -66,12 +71,18 @@ async function start() {
   await initDrill(); // restore drill stats/level + wire its controls
 
   initMIDI({
-    onNoteOn: (note) => { activeNotes.add(note); paintKey(note, true); onNotesChanged(); },
+    onNoteOn: (note) => {
+      activeNotes.add(note);
+      paintKey(note, true);
+      // scales needs individual note-on events (sequential engine)
+      if (app.mode === 'scales') scaleNoteOn(note);
+      onNotesChanged();
+    },
     onNoteOff: (note) => {
       activeNotes.delete(note);
       paintKey(note, false);
-      // in drill/exercises we keep feedback on release; detect & circle update live
-      if (app.mode === 'detect' || app.mode === 'circle') onNotesChanged();
+      // in drill/exercises we keep feedback on release; detect, circle & scales update live
+      if (app.mode === 'detect' || app.mode === 'circle' || app.mode === 'scales') onNotesChanged();
     },
   });
 
@@ -88,6 +99,13 @@ async function start() {
       simulateNotes(notes) {
         activeNotes.clear();
         notes.forEach(n => activeNotes.add(n));
+        onNotesChanged();
+      },
+      // simulate a single note-on (for sequential engines like scales)
+      simulateNoteOn(note) {
+        activeNotes.add(note);
+        paintKey(note, true);
+        if (app.mode === 'scales') scaleNoteOn(note);
         onNotesChanged();
       },
     };

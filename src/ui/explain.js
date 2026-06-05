@@ -31,7 +31,7 @@ export function buildExplainHTML(chord) {
 
 export function refreshExplain() {
   if (!app.explainOpen) return;
-  if (app.mode === 'exercises' || app.mode === 'theory' || app.mode === 'circle') return;
+  if (app.mode === 'exercises' || app.mode === 'scales' || app.mode === 'theory' || app.mode === 'circle') return;
   let chord = null;
   if (app.mode === 'detect') chord = detectChord([...activeNotes]);
   else chord = drill.target;
