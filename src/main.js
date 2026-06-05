@@ -5,7 +5,7 @@
 // ============================================================
 import './styles.css';
 import { app, activeNotes, drill } from './state.js';
-import { saveMode, loadMode } from './db.js';
+import { saveMode, loadMode, kvGet, kvSet } from './db.js';
 import { buildKeyboard, paintKey, clearDemo } from './ui/keyboard.js';
 import { initMIDI } from './midi.js';
 import { toggleExplain, refreshExplain } from './ui/explain.js';
@@ -70,7 +70,25 @@ async function start() {
   wireControls();
   await initDrill(); // restore drill stats/level + wire its controls
 
-  initMIDI({
+  // browser-support banner (Safari/Firefox — no Web MIDI)
+  if (!navigator.requestMIDIAccess) {
+    const banner = document.getElementById('browserBanner');
+    banner.style.display = 'flex';
+    document.getElementById('bannerDismiss').addEventListener('click', () => { banner.style.display = 'none'; });
+  }
+
+  // first-visit onboarding hint
+  const dismissed = await kvGet('onboarding:dismissed', false);
+  if (!dismissed) {
+    const hint = document.getElementById('onboardHint');
+    hint.style.display = 'flex';
+    document.getElementById('hintDismiss').addEventListener('click', () => {
+      hint.style.display = 'none';
+      kvSet('onboarding:dismissed', true);
+    });
+  }
+
+  if (navigator.requestMIDIAccess) initMIDI({
     onNoteOn: (note) => {
       activeNotes.add(note);
       paintKey(note, true);

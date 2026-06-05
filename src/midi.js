@@ -3,9 +3,11 @@
 //  just decoupled via callbacks. Works in Chrome / Edge / Opera.
 // ============================================================
 
-function setStatus(txt, on) {
+function setStatus(txt, on, waiting = false) {
   document.getElementById('statusTxt').textContent = txt;
-  document.getElementById('dot').classList.toggle('on', !!on);
+  const dot = document.getElementById('dot');
+  dot.classList.toggle('on', !!on);
+  dot.classList.toggle('waiting', !!waiting);
 }
 
 // handlers: { onNoteOn(note), onNoteOff(note) }
@@ -32,7 +34,7 @@ export function initMIDI(handlers) {
         count++;
         setStatus('Connected: ' + inp.name, true);
       });
-      if (count === 0) setStatus('Waiting for MIDI device…', false);
+      if (count === 0) setStatus('Waiting for MIDI device…', false, true);
     };
     attach();
     access.onstatechange = attach;
