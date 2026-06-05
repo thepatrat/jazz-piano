@@ -1,0 +1,19 @@
+{
+  "name": "comp-jazz-chord-trainer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Comp — a jazz chord trainer for an e-piano over Web MIDI. Stage 1: Vite + Dexie port of the prototype.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dexie": "^4.0.10",
+    "ts-fsrs": "^5.4.1"
+  },
+  "devDependencies": {
+    "vite": "^6.0.7"
+  }
+}

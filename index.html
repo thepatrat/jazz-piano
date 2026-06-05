@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comp — Jazz Chord Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Comp<span>.</span></h1>
+      <div class="sub">A jazz chord trainer for your e-piano. Connect via USB MIDI and play.</div>
+    </div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">No MIDI device</span></div>
+  </header>
+
+  <div class="modes">
+    <button id="mDetect" class="active" data-mode="detect">Detect</button>
+    <button id="mDrill" data-mode="drill">Drill</button>
+    <button id="mExercises" data-mode="exercises">Exercises</button>
+    <button id="mTheory" data-mode="theory">Theory</button>
+    <button id="mCircle" data-mode="circle">Circle</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <!-- DETECT -->
+    <div id="detectView">
+      <div class="label">Chord detected</div>
+      <div class="big" id="chordName">—</div>
+      <div class="notes-played" id="notesPlayed">play 3+ notes</div>
+      <button class="explain-toggle" id="explainBtn">How is this chord built? ▾</button>
+      <div class="explain" id="explainPanel"><div class="explain-inner" id="explainInner"></div></div>
+    </div>
+
+    <!-- DRILL -->
+    <div id="drillView" style="display:none; width:100%;">
+      <div class="label">Play this chord</div>
+      <div class="big" id="drillTarget">—</div>
+      <div class="prompt-target" id="drillFeedback"></div>
+      <div class="notes-played" id="drillNotes"></div>
+      <div class="drill-stats">
+        <div><b id="sCorrect">0</b>correct</div>
+        <div><b id="sStreak">0</b>streak</div>
+        <div><b id="sTotal">0</b>attempts</div>
+        <div><b id="sDue">0</b>due now</div>
+      </div>
+      <div class="controls">
+        <select id="drillLevel">
+          <option value="triads">Triads (maj / min / dim / aug)</option>
+          <option value="sevenths" selected>7th chords (maj7 / m7 / 7 / m7b5 / dim7)</option>
+          <option value="all">Everything + 6 / sus / 9</option>
+        </select>
+        <button id="drillSkip">Skip ⟳</button>
+        <button id="explainBtnD">Hint / explain ▾</button>
+      </div>
+      <div class="explain" id="explainPanelD"><div class="explain-inner" id="explainInnerD"></div></div>
+    </div>
+
+    <!-- EXERCISES -->
+    <div id="exercisesView" style="display:none;">
+      <div id="exListWrap">
+        <div class="label" style="margin-bottom:14px;">Exercise modules — from YouTube lessons</div>
+        <div class="ex-list" id="exList"></div>
+      </div>
+      <div id="exRunner" style="display:none;"></div>
+    </div>
+
+    <!-- THEORY -->
+    <div id="theoryView" style="display:none;">
+      <div id="thListWrap">
+        <div class="label" style="margin-bottom:14px;">Theory — short explainers with examples</div>
+        <div class="ex-list" id="thList"></div>
+      </div>
+      <div id="thReader" style="display:none;"></div>
+    </div>
+
+    <!-- CIRCLE OF FIFTHS -->
+    <div id="circleView" style="display:none;">
+      <div id="cfWrap"></div>
+    </div>
+  </div>
+
+  <div class="kb-wrap"><div class="kb" id="kb"></div></div>
+
+  <footer>
+    Works in Chrome / Edge / Opera (Web MIDI). Connect your e-piano via USB, reload, allow MIDI access.<br>
+    Detection ignores inversions &amp; octave — it names the chord by pitch-class set. Following the Mangold Project series? Drill the 7th chords first.
+    <div class="footer-actions">
+      <a class="donate" href="https://ko-fi.com/YOUR_HANDLE" target="_blank" rel="noopener">☕ Support Comp</a>
+    </div>
+    <div class="footer-note">Free &amp; open. Everything you play and all your progress stay in your browser — nothing is uploaded.</div>
+  </footer>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

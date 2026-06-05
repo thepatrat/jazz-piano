@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comp — Jazz Chord Trainer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Spline+Sans+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #14110e;
+    --panel: #1d1915;
+    --ink: #f4ede1;
+    --muted: #9a8f7d;
+    --accent: #e8a33d;
+    --accent2: #5fb89a;
+    --wrong: #d4654f;
+    --key-w: #efe6d6;
+    --key-b: #211c17;
+    --line: #322a22;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(circle at 20% -10%, #2a221a 0%, transparent 45%),
+                      radial-gradient(circle at 95% 110%, #1f2b26 0%, transparent 50%);
+    color: var(--ink);
+    font-family: 'Spline Sans Mono', monospace;
+    min-height: 100vh;
+    padding: 32px 20px 60px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; }
+  h1 {
+    font-family: 'Fraunces', serif; font-weight: 900; font-size: 52px; line-height: 0.9;
+    letter-spacing: -1px;
+  }
+  h1 span { color: var(--accent); font-style: italic; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 6px; max-width: 380px; }
+
+  .status { font-size: 12px; display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--wrong); box-shadow: 0 0 10px var(--wrong); }
+  .dot.on { background: var(--accent2); box-shadow: 0 0 10px var(--accent2); }
+
+  .modes { display: flex; gap: 8px; margin-bottom: 20px; }
+  .modes button {
+    flex: 1; background: var(--panel); color: var(--muted); border: 1px solid var(--line);
+    padding: 12px; border-radius: 10px; font-family: inherit; font-size: 13px; cursor: pointer;
+    transition: .2s; font-weight: 500;
+  }
+  .modes button.active { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+  .modes button:hover:not(.active) { border-color: var(--accent); color: var(--ink); }
+
+  .stage {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+    padding: 36px 28px; margin-bottom: 18px; min-height: 220px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  }
+  .big {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 80px; line-height: 1;
+    letter-spacing: -2px;
+  }
+  .big.flash-ok { color: var(--accent2); }
+  .big.flash-no { color: var(--wrong); }
+  .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+  .notes-played { color: var(--muted); font-size: 15px; margin-top: 18px; min-height: 22px; letter-spacing: 1px; }
+  .prompt-target { color: var(--accent); font-size: 14px; margin-top: 10px; min-height: 20px; }
+
+  .drill-stats { display: flex; gap: 28px; margin-top: 22px; }
+  .drill-stats div { font-size: 13px; color: var(--muted); }
+  .drill-stats b { color: var(--ink); font-size: 22px; font-family: 'Fraunces',serif; display:block; }
+
+  .controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+  .controls button, select {
+    background: transparent; color: var(--ink); border: 1px solid var(--line);
+    padding: 10px 18px; border-radius: 8px; font-family: inherit; font-size: 12px; cursor: pointer; transition: .2s;
+  }
+  .controls button:hover { border-color: var(--accent); }
+  select { background: var(--panel); }
+
+  /* keyboard */
+  .kb-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; overflow-x: auto; }
+  .kb { position: relative; height: 130px; display: flex; min-width: 700px; }
+  .wk { position: relative; flex: 1; background: var(--key-w); border: 1px solid #00000040; border-radius: 0 0 6px 6px; margin: 0 1px; transition: background .08s; }
+  .wk.act { background: var(--accent); }
+  .bk { position: absolute; top: 0; width: 60%; height: 62%; background: var(--key-b); border-radius: 0 0 5px 5px; z-index: 2; transform: translateX(50%); transition: background .08s; border:1px solid #000; }
+  .bk.act { background: var(--accent); }
+  .wk .nm { position: absolute; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 9px; color: #00000055; pointer-events:none;}
+
+  footer { color: var(--muted); font-size: 11px; text-align: center; margin-top: 22px; line-height: 1.7; }
+  a { color: var(--accent2); }
+
+  /* explainer */
+  .explain-toggle {
+    background: transparent; color: var(--accent2); border: 1px solid var(--line);
+    padding: 8px 16px; border-radius: 20px; font-family: inherit; font-size: 11px; cursor: pointer;
+    transition: .2s; margin-top: 18px; letter-spacing: .5px;
+  }
+  .explain-toggle:hover { border-color: var(--accent2); }
+  .explain {
+    overflow: hidden; max-height: 0; transition: max-height .35s ease; width: 100%;
+    text-align: left; margin-top: 0;
+  }
+  .explain.open { max-height: 600px; margin-top: 20px; }
+  .explain-inner {
+    background: #00000028; border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px 22px; font-size: 13px; line-height: 1.65;
+  }
+  .explain-inner h4 { font-family:'Fraunces',serif; font-weight:600; font-size:17px; color:var(--accent); margin-bottom:10px; letter-spacing:-.3px;}
+  .explain-inner .desc { color: var(--ink); margin-bottom: 14px; }
+  .formula { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
+  .frow { display:grid; grid-template-columns: 90px 70px 1fr; gap:10px; align-items:center; font-size:12px; }
+  .frow .iv { color:var(--accent2); }
+  .frow .nt { font-weight:600; color:var(--ink); }
+  .frow .rl { color:var(--muted); }
+  .frow.root .nt { color:var(--accent); }
+  .tip { color: var(--muted); font-size:12px; border-top:1px solid var(--line); padding-top:12px; }
+
+  /* exercises */
+  #exercisesView { width:100%; text-align:left; }
+  .ex-list { display:flex; flex-direction:column; gap:12px; }
+  .ex-card {
+    background:#00000028; border:1px solid var(--line); border-radius:12px; padding:18px 20px;
+    transition:.2s; cursor:pointer;
+  }
+  .ex-card:hover { border-color:var(--accent); }
+  .ex-card .ex-top { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+  .ex-card h3 { font-family:'Fraunces',serif; font-weight:600; font-size:19px; letter-spacing:-.3px; }
+  .ex-badge { font-size:10px; padding:3px 9px; border-radius:20px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; letter-spacing:.5px;}
+  .ex-badge.lvl2 { color:var(--accent2); border-color:var(--accent2); }
+  .ex-badge.lvl0 { color:var(--muted); }
+  .ex-card .ex-desc { color:var(--muted); font-size:13px; line-height:1.6; margin-top:8px; }
+  .ex-card .ex-src { font-size:11px; color:var(--accent2); margin-top:10px; }
+
+  .runner-head { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .runner-head button { background:transparent; border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 14px; font-family:inherit; font-size:12px; cursor:pointer;}
+  .runner-head button:hover { border-color:var(--accent); }
+  .runner-head h3 { font-family:'Fraunces',serif; font-weight:600; font-size:22px; }
+  .video-embed { position:relative; width:100%; aspect-ratio:16/9; border-radius:12px; overflow:hidden; margin-bottom:16px; border:1px solid var(--line); }
+  .video-embed iframe { width:100%; height:100%; border:0; }
+  .ex-run-body { text-align:center; }
+  .ex-progress { color:var(--muted); font-size:12px; letter-spacing:1px; margin-bottom:6px; }
+  .ex-seq { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin:14px 0 4px; }
+  .ex-seq span { font-size:12px; padding:5px 10px; border-radius:7px; border:1px solid var(--line); color:var(--muted); }
+  .ex-seq span.cur { border-color:var(--accent); color:var(--accent); }
+  .ex-seq span.done { border-color:var(--accent2); color:var(--accent2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Comp<span>.</span></h1>
+      <div class="sub">A jazz chord trainer for your e-piano. Connect via USB MIDI and play.</div>
+    </div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">No MIDI device</span></div>
+  </header>
+
+  <div class="modes">
+    <button id="mDetect" class="active" onclick="setMode('detect')">Detect</button>
+    <button id="mDrill" onclick="setMode('drill')">Drill</button>
+    <button id="mExercises" onclick="setMode('exercises')">Exercises</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <!-- DETECT -->
+    <div id="detectView">
+      <div class="label">Chord detected</div>
+      <div class="big" id="chordName">—</div>
+      <div class="notes-played" id="notesPlayed">play 3+ notes</div>
+      <button class="explain-toggle" onclick="toggleExplain()" id="explainBtn">How is this chord built? ▾</button>
+      <div class="explain" id="explainPanel"><div class="explain-inner" id="explainInner"></div></div>
+    </div>
+
+    <!-- DRILL -->
+    <div id="drillView" style="display:none; width:100%;">
+      <div class="label">Play this chord</div>
+      <div class="big" id="drillTarget">—</div>
+      <div class="prompt-target" id="drillFeedback"></div>
+      <div class="notes-played" id="drillNotes"></div>
+      <div class="drill-stats">
+        <div><b id="sCorrect">0</b>correct</div>
+        <div><b id="sStreak">0</b>streak</div>
+        <div><b id="sTotal">0</b>attempts</div>
+      </div>
+      <div class="controls">
+        <select id="drillLevel" onchange="rerollDrill()">
+          <option value="triads">Triads (maj / min / dim / aug)</option>
+          <option value="sevenths" selected>7th chords (maj7 / m7 / 7 / m7b5 / dim7)</option>
+          <option value="all">Everything + 6 / sus / 9</option>
+        </select>
+        <button onclick="rerollDrill()">Skip ⟳</button>
+        <button onclick="toggleExplain()" id="explainBtnD">Hint / explain ▾</button>
+      </div>
+      <div class="explain" id="explainPanelD"><div class="explain-inner" id="explainInnerD"></div></div>
+    </div>
+
+    <!-- EXERCISES -->
+    <div id="exercisesView" style="display:none;">
+      <div id="exListWrap">
+        <div class="label" style="margin-bottom:14px;">Exercise modules — from YouTube lessons</div>
+        <div class="ex-list" id="exList"></div>
+      </div>
+      <div id="exRunner" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="kb-wrap"><div class="kb" id="kb"></div></div>
+
+  <footer>
+    Works in Chrome / Edge / Opera (Web MIDI). Connect your e-piano via USB, reload, allow MIDI access.<br>
+    Detection ignores inversions &amp; octave — it names the chord by pitch-class set. Following the Mangold Project series? Drill the 7th chords first.
+  </footer>
+</div>
+
+<script>
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLATS = {'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb'};
+
+// ---- chord dictionary: interval set (semitones from root) -> quality ----
+const CHORD_DEFS = [
+  // sevenths / extensions first (more specific), checked by exact set match
+  {q:'maj7',  iv:[0,4,7,11]},
+  {q:'7',     iv:[0,4,7,10]},
+  {q:'m7',    iv:[0,3,7,10]},
+  {q:'m7b5',  iv:[0,3,6,10]},
+  {q:'dim7',  iv:[0,3,6,9]},
+  {q:'mMaj7', iv:[0,3,7,11]},
+  {q:'6',     iv:[0,4,7,9]},
+  {q:'m6',    iv:[0,3,7,9]},
+  {q:'add9',  iv:[0,2,4,7]},
+  {q:'9',     iv:[0,2,4,7,10]},
+  {q:'maj',   iv:[0,4,7]},
+  {q:'m',     iv:[0,3,7]},
+  {q:'dim',   iv:[0,3,6]},
+  {q:'aug',   iv:[0,4,8]},
+  {q:'sus4',  iv:[0,5,7]},
+  {q:'sus2',  iv:[0,2,7]},
+  {q:'5',     iv:[0,7]},
+];
+
+const activeNotes = new Set();
+let mode = 'detect';
+let explainOpen = false;
+
+// interval semitone -> degree label
+const IV_NAMES = {
+  0:['1','root'], 2:['9','ninth'], 3:['♭3','minor third'], 4:['3','major third'],
+  5:['11','perfect fourth'], 6:['♭5','flat fifth'], 7:['5','perfect fifth'],
+  8:['♯5','sharp fifth'], 9:['6','major sixth'], 10:['♭7','minor seventh'], 11:['7','major seventh']
+};
+// human description per quality
+const CHORD_INFO = {
+  'maj':  {name:'Major triad',        desc:'Bright, stable, "happy". The bedrock chord — a major third stacked with a minor third on top.'},
+  'm':    {name:'Minor triad',        desc:'Darker, "sad" colour. Flip the thirds: minor third on the bottom, major third on top.'},
+  'dim':  {name:'Diminished triad',   desc:'Tense and unstable. Two minor thirds stacked — wants to resolve.'},
+  'aug':  {name:'Augmented triad',    desc:'Dreamy, suspended-in-air. Two major thirds stacked, splitting the octave evenly.'},
+  'maj7': {name:'Major 7th',          desc:'Lush, warm, the signature "jazzy" sound. A major triad with a major 7th on top. Your I chord (e.g. Cmaj7).'},
+  '7':    {name:'Dominant 7th',       desc:'The engine of jazz. Major triad + a ♭7. Restless — it pulls toward the chord a fifth below. The V in a ii–V–I.'},
+  'm7':   {name:'Minor 7th',          desc:'Smooth and mellow. Minor triad + ♭7. The ii chord in a ii–V–I (e.g. Dm7).'},
+  'm7b5': {name:'Half-diminished (m7♭5)', desc:'Moody. A diminished triad with a ♭7. The ii chord in a minor key ii–V–i.'},
+  'dim7': {name:'Diminished 7th',     desc:'Maximally tense — four notes evenly spaced a minor third apart. A common passing/leading chord.'},
+  'mMaj7':{name:'Minor-major 7th',    desc:'Eerie, cinematic. Minor triad with a major 7th — that one clashing top note does the work.'},
+  '6':    {name:'Major 6th',          desc:'Sweet, vintage. Major triad with an added 6th instead of a 7th. Common as a I chord ending.'},
+  'm6':   {name:'Minor 6th',          desc:'Bittersweet. Minor triad with a natural 6th on top.'},
+  'add9': {name:'Add 9',              desc:'Open and modern. A plain triad with the 9th added, no 7th in between.'},
+  '9':    {name:'Dominant 9th',       desc:'A dominant 7th with the 9th stacked on — fuller, funkier extension of the V chord.'},
+  'sus4': {name:'Suspended 4th',      desc:'The third is replaced by the 4th — neither major nor minor, hanging, wants to resolve down to the 3rd.'},
+  'sus2': {name:'Suspended 2nd',      desc:'Third replaced by the 2nd — open and airy.'},
+  '5':    {name:'Power chord (5)',    desc:'Just root + fifth, no third. Hollow and neutral.'},
+};
+
+// ============================================================
+//  EXERCISE MODULES
+//  The same object shape covers every encoding level:
+//    level 0 = link + description only
+//    level 2 = a `generate()` that expands into a drill sequence
+//  Upgrading a module = filling in more fields. Nothing restructures.
+// ============================================================
+const CIRCLE_OF_FOURTHS = [0,5,10,3,8,1,6,11,4,9,2,7]; // C F Bb Eb Ab Db Gb B E A D G
+
+const EXERCISE_MODULES = [
+  {
+    id: 'keithson-drop2',
+    title: 'Drop 2 voicings — major triads',
+    level: 2,
+    voicingMode: true,
+    source: { label: 'Michael Keithson — My Favourite Piano Technique', url: 'https://www.youtube.com' },
+    videoId: 'NB4MoWjW-Tw',
+    desc: 'Take a closed triad and drop the second-from-top note down an octave — instantly richer, more pro sound. This drills Stages 1–3: C, F, G major in all three positions, then the same shapes in F major (F, Bb, C). Checks the actual voicing shape, not just the chord name.',
+    generate() {
+      const seq = [];
+      const sets = [
+        { label:'Key of C', roots:[ {pc:0,n:'C'},{pc:5,n:'F'},{pc:7,n:'G'} ] },
+        { label:'Key of F', roots:[ {pc:5,n:'F'},{pc:10,n:'Bb'},{pc:0,n:'C'} ] },
+      ];
+      for(const set of sets){
+        for(const r of set.roots){
+          for(let inv=0; inv<3; inv++){
+            seq.push({
+              root: r.pc,
+              quality: 'maj',
+              inversion: inv,
+              voicing: drop2Voicing('maj', inv),
+              label: `${r.n} major — Drop 2, ${INV_NAMES[inv]}`,
+              tag: set.label
+            });
+          }
+        }
+      }
+      return seq;
+    }
+  },
+  {
+    id: 'mangold-251',
+    title: 'ii–V–I in all 12 keys',
+    level: 2,
+    source: { label: 'Mangold Project — Jazz Piano', url: 'https://www.youtube.com/watch?v=NB4MoWjW-Tw' },
+    videoId: 'NB4MoWjW-Tw',
+    desc: 'The single most important jazz progression. Play Dm7 → G7 → Cmaj7, then move the whole thing through every key around the circle of fourths. This module generates the full sequence and drills you chord by chord.',
+    // generator: expands the rule into an ordered list of {root, quality} prompts
+    generate() {
+      const seq = [];
+      for (const key of CIRCLE_OF_FOURTHS) {
+        seq.push({ root: (key + 2) % 12, quality: 'm7',   tag: 'ii' });
+        seq.push({ root: (key + 7) % 12, quality: '7',    tag: 'V'  });
+        seq.push({ root: key,            quality: 'maj7', tag: 'I'  });
+      }
+      return seq;
+    }
+  },
+  {
+    id: 'example-link-only',
+    title: 'Rootless voicings (watch + practice)',
+    level: 0,
+    source: { label: 'Example — link-only module', url: 'https://www.youtube.com/watch?v=NB4MoWjW-Tw' },
+    videoId: 'NB4MoWjW-Tw',
+    desc: 'A Level-0 module: just the embedded video plus a note on what to practice. No generated drill yet — but you could "upgrade" this later by encoding the voicing shapes. Watch, then try the left-hand 3-7-9 shells in a few keys.'
+  }
+];
+
+let exState = { module:null, seq:[], idx:0, revealed:false };
+
+// ============================================================
+//  VOICING ENGINE (octave-aware, unlike detectChord)
+//  A voicing = an ordered list of absolute semitone offsets from
+//  its lowest note. We match the SHAPE: the played notes, reduced
+//  to offsets-from-bottom, must equal the target offsets.
+//  Octave-agnostic = the whole shape can sit anywhere on the keys.
+// ============================================================
+
+// closed-position triad pitch-classes (intervals from root) per inversion
+function closedTriad(quality, inversion){
+  const def = CHORD_DEFS.find(d=>d.q===quality);
+  const base = def.iv.slice();           // e.g. maj = [0,4,7]
+  // build inversion: rotate and lift rotated notes by an octave
+  const n = base.length;
+  let voiced = [];
+  for(let i=0;i<n;i++){
+    let semi = base[(inversion+i)%n];
+    // each wrap past the top adds 12
+    if((inversion+i) >= n) semi += 12;
+    voiced.push(semi);
+  }
+  // normalise so lowest = 0
+  const lo = Math.min(...voiced);
+  return voiced.map(v=>v-lo).sort((a,b)=>a-b);
+}
+
+// Drop 2: take 2nd-from-top note, drop an octave, renormalise
+function drop2(closed){
+  const sorted=[...closed].sort((a,b)=>a-b);
+  if(sorted.length<3) return sorted;
+  const secondFromTop = sorted[sorted.length-2];
+  const dropped = sorted.map(v=> v===secondFromTop ? v-12 : v);
+  const lo=Math.min(...dropped);
+  return dropped.map(v=>v-lo).sort((a,b)=>a-b);
+}
+
+// produce the target voicing offsets for a Drop2 step
+function drop2Voicing(quality, inversion){
+  return drop2(closedTriad(quality, inversion));
+}
+
+// octave-agnostic shape match: played notes -> offsets from lowest
+function matchVoicing(midiNotes, targetOffsets){
+  if(midiNotes.length !== targetOffsets.length) return false;
+  const sorted=[...midiNotes].sort((a,b)=>a-b);
+  const lo=sorted[0];
+  const offs=sorted.map(n=>n-lo);
+  return offs.every((v,i)=>v===targetOffsets[i]);
+}
+
+// also need to verify it's the right ROOT (pitch class), since offsets
+// alone don't pin the key. Lowest note's pitch class tells us position.
+function voicingRootPC(midiNotes, inversion, quality){
+  // bottom note of a Drop2: derived from which chord tone is lowest
+  // simplest: check the set of pitch classes matches the target chord
+  const def=CHORD_DEFS.find(d=>d.q===quality);
+  const pcs=new Set(midiNotes.map(n=>n%12));
+  return def.iv.length===pcs.size;
+}
+
+const INV_NAMES=['root position','1st inversion','2nd inversion'];
+
+// ---- detection: try each note as root, match pitch-class set ----
+function detectChord(midiNotes){
+  if(midiNotes.length < 2) return null;
+  const pcs = [...new Set(midiNotes.map(n=>n%12))].sort((a,b)=>a-b);
+  for(const root of pcs){
+    const intervals = pcs.map(pc => (pc-root+12)%12).sort((a,b)=>a-b);
+    for(const def of CHORD_DEFS){
+      if(intervals.length===def.iv.length && def.iv.every((v,i)=>v===intervals[i])){
+        return {root, quality:def.q};
+      }
+    }
+  }
+  return null;
+}
+function pcName(pc, preferFlat=false){
+  const sharp = NOTE_NAMES[pc];
+  return preferFlat && FLATS[sharp] ? FLATS[sharp] : sharp;
+}
+function chordLabel(c){
+  if(!c) return null;
+  const name = pcName(c.root);
+  const suffix = c.quality==='maj' ? '' : c.quality;
+  return name + (suffix==='maj7'||suffix==='m'||suffix===''?'':'') + suffix;
+}
+
+// ---- UI: build keyboard 48..84 (C2..C6) ----
+const WHITE_PATTERN = [0,2,4,5,7,9,11];
+function buildKeyboard(){
+  const kb = document.getElementById('kb');
+  kb.innerHTML='';
+  const lo=48, hi=84;
+  // create white keys, attach black keys to relevant ones
+  for(let m=lo;m<=hi;m++){
+    if(WHITE_PATTERN.includes(m%12)){
+      const wk=document.createElement('div');
+      wk.className='wk'; wk.id='k'+m;
+      const nm=document.createElement('div'); nm.className='nm';
+      if(m%12===0) nm.textContent='C'+(Math.floor(m/12)-1);
+      wk.appendChild(nm);
+      kb.appendChild(wk);
+      const bpc=(m%12);
+      if([0,2,5,7,9].includes(bpc) && m+1<=hi){ // has black to its right
+        const bk=document.createElement('div'); bk.className='bk'; bk.id='k'+(m+1);
+        wk.appendChild(bk);
+      }
+    }
+  }
+}
+function paintKey(m,on){ const e=document.getElementById('k'+m); if(e) e.classList.toggle('act',on); }
+
+// ---- mode switching ----
+function setMode(mo){
+  mode=mo;
+  document.getElementById('mDetect').classList.toggle('active',mo==='detect');
+  document.getElementById('mDrill').classList.toggle('active',mo==='drill');
+  document.getElementById('mExercises').classList.toggle('active',mo==='exercises');
+  document.getElementById('detectView').style.display = mo==='detect'?'block':'none';
+  document.getElementById('drillView').style.display = mo==='drill'?'block':'none';
+  document.getElementById('exercisesView').style.display = mo==='exercises'?'block':'none';
+  if(mo==='drill' && !drill.target) rerollDrill();
+  if(mo==='exercises') renderExerciseList();
+  // sync explainer panels to current open-state
+  document.getElementById('explainPanel').classList.toggle('open', explainOpen && mo==='detect');
+  document.getElementById('explainPanelD').classList.toggle('open', explainOpen && mo==='drill');
+  refreshExplain();
+}
+
+// ---- DETECT render ----
+function renderDetect(){
+  const notes=[...activeNotes].sort((a,b)=>a-b);
+  const c=detectChord(notes);
+  const big=document.getElementById('chordName');
+  big.textContent = c ? chordLabel(c) : (notes.length>=2?'?':'—');
+  document.getElementById('notesPlayed').textContent =
+    notes.length? notes.map(n=>pcName(n%12)+(Math.floor(n/12)-1)).join('  ') : 'play 3+ notes';
+}
+
+// ---- DRILL logic ----
+const ROOTS=[0,2,4,5,7,9,11,1,3,6,8,10];
+const LEVELS={
+  triads:['maj','m','dim','aug'],
+  sevenths:['maj7','m7','7','m7b5','dim7'],
+  all:['maj','m','dim','aug','maj7','m7','7','m7b5','dim7','6','m6','sus4','sus2','add9']
+};
+let drill={target:null, correct:0, streak:0, total:0, answered:false};
+
+function rerollDrill(){
+  const lvl=document.getElementById('drillLevel').value;
+  const quals=LEVELS[lvl];
+  const root=ROOTS[Math.floor(Math.random()*ROOTS.length)];
+  const quality=quals[Math.floor(Math.random()*quals.length)];
+  drill.target={root,quality}; drill.answered=false;
+  document.getElementById('drillTarget').textContent=chordLabel({root,quality});
+  document.getElementById('drillTarget').className='big';
+  document.getElementById('drillFeedback').textContent='';
+  document.getElementById('drillNotes').textContent='';
+  refreshExplain();
+}
+function checkDrill(){
+  if(drill.answered) return;
+  const notes=[...activeNotes];
+  const c=detectChord(notes);
+  document.getElementById('drillNotes').textContent =
+    notes.length? notes.sort((a,b)=>a-b).map(n=>pcName(n%12)).join(' ') : '';
+  if(!c) return;
+  const t=drill.target;
+  const tEl=document.getElementById('drillTarget'), fb=document.getElementById('drillFeedback');
+  if(c.root===t.root && c.quality===t.quality){
+    drill.answered=true; drill.correct++; drill.streak++; drill.total++;
+    tEl.className='big flash-ok'; fb.textContent='✓ nice — '+chordLabel(c);
+    updateStats(); setTimeout(rerollDrill,900);
+  } else {
+    // only count a miss as an attempt if it's a complete, valid different chord
+    tEl.className='big flash-no'; fb.textContent='that\'s '+chordLabel(c)+' — try again';
+  }
+}
+function updateStats(){
+  document.getElementById('sCorrect').textContent=drill.correct;
+  document.getElementById('sStreak').textContent=drill.streak;
+  document.getElementById('sTotal').textContent=drill.total;
+}
+
+// ---- central refresh on any note change ----
+function onNotesChanged(){
+  if(mode==='detect') renderDetect();
+  else if(mode==='drill') checkDrill();
+  else if(mode==='exercises') checkExercise();
+  refreshExplain();
+}
+
+// ---- EXERCISES: list + runner ----
+function renderExerciseList(){
+  const list=document.getElementById('exList');
+  list.innerHTML='';
+  EXERCISE_MODULES.forEach(m=>{
+    const card=document.createElement('div');
+    card.className='ex-card';
+    card.onclick=()=>openExercise(m.id);
+    const badge = m.level===2
+      ? '<span class="ex-badge lvl2">▶ generates drill</span>'
+      : '<span class="ex-badge lvl0">link + notes</span>';
+    card.innerHTML=`
+      <div class="ex-top"><h3>${m.title}</h3>${badge}</div>
+      <div class="ex-desc">${m.desc}</div>
+      <div class="ex-src">↳ ${m.source.label}</div>`;
+    list.appendChild(card);
+  });
+}
+function openExercise(id){
+  const m=EXERCISE_MODULES.find(x=>x.id===id);
+  exState.module=m;
+  exState.seq = m.generate ? m.generate() : [];
+  exState.idx = 0;
+  document.getElementById('exListWrap').style.display='none';
+  const r=document.getElementById('exRunner');
+  r.style.display='block';
+
+  let body='';
+  if(m.level===2){
+    const hintBtn = m.voicingMode ? '<button onclick="exReveal()" id="exRevealBtn">Reveal hint 👁</button>' : '';
+    body=`
+      <div class="ex-run-body">
+        <div class="ex-progress" id="exProg"></div>
+        <div class="big" id="exTarget">—</div>
+        <div class="prompt-target" id="exFeedback"></div>
+        <div class="notes-played" id="exHint"></div>
+        <div class="ex-seq" id="exSeq"></div>
+        <div class="controls"><button onclick="exSkip()">Skip ⟳</button>${hintBtn}</div>
+      </div>`;
+  } else {
+    body=`<div class="ex-run-body"><div class="ex-desc" style="text-align:center;color:var(--muted)">Watch the lesson above, then practice freely — switch to Detect to check your voicings. Encode this into a drill anytime.</div></div>`;
+  }
+
+  r.innerHTML=`
+    <div class="runner-head">
+      <button onclick="closeExercise()">← Back</button>
+      <h3>${m.title}</h3>
+    </div>
+    <div class="video-embed">
+      <iframe src="https://www.youtube-nocookie.com/embed/${m.videoId}" title="lesson" allowfullscreen></iframe>
+    </div>
+    ${body}`;
+  if(m.level===2) renderExStep();
+}
+function closeExercise(){
+  exState.module=null;
+  document.getElementById('exRunner').style.display='none';
+  document.getElementById('exRunner').innerHTML=''; // stops the video
+  document.getElementById('exListWrap').style.display='block';
+}
+function renderExStep(){
+  const {seq,idx,module}=exState;
+  exState.revealed=false;
+  const isVoicing = module && module.voicingMode;
+  if(idx>=seq.length){
+    document.getElementById('exTarget').textContent='✓ done';
+    document.getElementById('exTarget').className='big flash-ok';
+    document.getElementById('exFeedback').textContent='All shapes complete — nice work.';
+    document.getElementById('exProg').textContent='';
+    const h=document.getElementById('exHint'); if(h) h.textContent='';
+    return;
+  }
+  const step=seq[idx];
+  document.getElementById('exProg').textContent=`step ${idx+1} / ${seq.length}`;
+  const t=document.getElementById('exTarget');
+  // voicing steps carry a custom label; chord steps use chordLabel
+  t.textContent = step.label ? '' : chordLabel(step);
+  t.className='big';
+  const fb=document.getElementById('exFeedback');
+  if(isVoicing){
+    // show the human label as the prompt (it's longer than a chord symbol)
+    t.style.fontSize='40px';
+    t.textContent = chordLabel({root:step.root,quality:step.quality});
+    fb.textContent = step.label.split(' — ')[1] || '';
+  } else {
+    t.style.fontSize='';
+    fb.textContent = step.tag ? '('+step.tag+' chord)' : '';
+  }
+  const h=document.getElementById('exHint'); if(h) h.textContent='';
+  // sequence strip
+  const seqEl=document.getElementById('exSeq'); seqEl.innerHTML='';
+  const groupSize = isVoicing ? 3 : 3;
+  const start=Math.floor(idx/groupSize)*groupSize;
+  for(let i=start;i<Math.min(start+groupSize,seq.length);i++){
+    const s=document.createElement('span');
+    s.textContent = seq[i].label ? INV_NAMES[seq[i].inversion].replace(' position','').replace('inversion','inv') : chordLabel(seq[i]);
+    if(i<idx) s.className='done'; else if(i===idx) s.className='cur';
+    seqEl.appendChild(s);
+  }
+  // tag line (which key set)
+  if(step.tag && isVoicing){
+    document.getElementById('exProg').textContent += '  ·  '+step.tag;
+  }
+}
+function exReveal(){
+  const step=exState.seq[exState.idx];
+  if(!step || !step.voicing) return;
+  exState.revealed=true;
+  // describe the shape as note names stacked from the bottom
+  // bottom note pitch class depends on inversion; reconstruct actual PCs in order
+  const pcs = voicingPitchClasses(step);
+  document.getElementById('exHint').textContent =
+    'bottom → top:  ' + pcs.map(pc=>pcName(pc)).join('  ');
+}
+// reconstruct the ordered pitch classes of a Drop2 voicing for display
+function voicingPitchClasses(step){
+  // closed triad absolute semitones from root, inverted
+  const def=CHORD_DEFS.find(d=>d.q===step.quality);
+  const n=def.iv.length;
+  let voiced=[];
+  for(let i=0;i<n;i++){
+    let semi=def.iv[(step.inversion+i)%n];
+    if((step.inversion+i)>=n) semi+=12;
+    voiced.push(semi);
+  }
+  // drop 2nd from top
+  voiced.sort((a,b)=>a-b);
+  const secondFromTop=voiced[voiced.length-2];
+  voiced=voiced.map(v=>v===secondFromTop?v-12:v).sort((a,b)=>a-b);
+  return voiced.map(semi=>(step.root+semi+120)%12);
+}
+function exSkip(){ if(exState.idx<exState.seq.length){ exState.idx++; renderExStep(); } }
+function checkExercise(){
+  if(!exState.module || exState.module.level!==2) return;
+  if(exState.idx>=exState.seq.length) return;
+  const step=exState.seq[exState.idx];
+  const notes=[...activeNotes];
+
+  if(exState.module.voicingMode){
+    // need: correct shape (octave-agnostic) AND correct pitch classes (right key)
+    if(notes.length !== step.voicing.length) return;
+    const shapeOK = matchVoicing(notes, step.voicing);
+    const targetPCs = new Set(voicingPitchClasses(step));
+    const playedPCs = new Set(notes.map(n=>n%12));
+    const pcsOK = targetPCs.size===playedPCs.size && [...targetPCs].every(pc=>playedPCs.has(pc));
+    if(shapeOK && pcsOK){
+      document.getElementById('exFeedback').textContent='✓ that\'s the Drop 2 shape';
+      document.getElementById('exTarget').className='big flash-ok';
+      exState.idx++;
+      setTimeout(renderExStep, 550);
+    }
+    return;
+  }
+
+  // plain chord step (pitch-class detection)
+  const c=detectChord(notes);
+  if(!c) return;
+  if(c.root===step.root && c.quality===step.quality){
+    document.getElementById('exFeedback').textContent='✓';
+    exState.idx++;
+    setTimeout(renderExStep, 450);
+  }
+}
+
+// ---- EXPLAINER ----
+function toggleExplain(){
+  explainOpen = !explainOpen;
+  refreshExplain();
+  const p = mode==='detect' ? 'explainPanel' : 'explainPanelD';
+  const b = mode==='detect' ? 'explainBtn' : 'explainBtnD';
+  document.getElementById(p).classList.toggle('open', explainOpen);
+  const btn=document.getElementById(b);
+  if(btn) btn.textContent = (mode==='detect'?'How is this chord built? ':'Hint / explain ') + (explainOpen?'▴':'▾');
+}
+function buildExplainHTML(chord){
+  if(!chord){
+    return '<h4>Play a chord</h4><div class="desc">Hold down the notes of a chord and this panel breaks down how it\'s built — note by note.</div>';
+  }
+  const info = CHORD_INFO[chord.quality] || {name:chord.quality, desc:''};
+  const def = CHORD_DEFS.find(d=>d.q===chord.quality);
+  const ivs = def ? def.iv : [0];
+  const rootName = pcName(chord.root);
+  let rows='';
+  ivs.forEach(iv=>{
+    const pc=(chord.root+iv)%12;
+    const [deg,role]=IV_NAMES[iv]||['?',''];
+    rows += `<div class="frow ${iv===0?'root':''}">
+      <span class="iv">${deg===''?'':'degree '+deg}</span>
+      <span class="nt">${pcName(pc)}</span>
+      <span class="rl">${iv===0?'root note':'+'+iv+' semitones · '+role}</span>
+    </div>`;
+  });
+  return `<h4>${rootName} ${info.name}</h4>
+    <div class="desc">${info.desc}</div>
+    <div class="formula">${rows}</div>
+    <div class="tip">Stack from the bottom: start on <b>${rootName}</b>, then add each note above it. Octave and order don't change the chord's name.</div>`;
+}
+function refreshExplain(){
+  if(!explainOpen) return;
+  if(mode==='exercises') return;
+  let chord=null;
+  if(mode==='detect') chord = detectChord([...activeNotes]);
+  else chord = drill.target;
+  const inner = mode==='detect' ? 'explainInner' : 'explainInnerD';
+  document.getElementById(inner).innerHTML = buildExplainHTML(chord);
+}
+
+// ---- Web MIDI ----
+function setStatus(txt,on){ document.getElementById('statusTxt').textContent=txt; document.getElementById('dot').classList.toggle('on',!!on); }
+
+function handleMIDI(msg){
+  const [status,note,vel]=msg.data;
+  const cmd=status & 0xf0;
+  if(cmd===0x90 && vel>0){ activeNotes.add(note); paintKey(note,true); onNotesChanged(); }
+  else if(cmd===0x80 || (cmd===0x90 && vel===0)){ activeNotes.delete(note); paintKey(note,false);
+    // in drill, don't wipe feedback on release; in detect, update
+    if(mode==='detect') onNotesChanged();
+  }
+}
+function initMIDI(){
+  if(!navigator.requestMIDIAccess){ setStatus('Web MIDI not supported — use Chrome',false); return; }
+  navigator.requestMIDIAccess().then(access=>{
+    const attach=()=>{
+      let count=0;
+      access.inputs.forEach(inp=>{ inp.onmidimessage=handleMIDI; count++; setStatus('Connected: '+inp.name,true); });
+      if(count===0) setStatus('Waiting for MIDI device…',false);
+    };
+    attach();
+    access.onstatechange=attach;
+  }).catch(()=>setStatus('MIDI access denied',false));
+}
+
+buildKeyboard();
+initMIDI();
+</script>
+</body>
+</html>

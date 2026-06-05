@@ -1,0 +1,4 @@
+# Cloudflare Pages / Netlify headers file (copied to the site root on build).
+# Vite fingerprints asset filenames, so they can be cached forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
