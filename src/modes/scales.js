@@ -13,12 +13,16 @@ import {
   scaleItemId, newSrsItem, gradeItem, Rating, humanizeUntil,
 } from '../srs.js';
 import { seedSrsItems, nextSrsItem, countDue, putSrsItem, logReview } from '../db.js';
+import * as transport from '../transport.js';
+import { scoreOnset, averageBucket, bucketEmoji, bucketToRating } from '../rhythmScore.js';
 
 let promptStart = 0;
 let hadError = false;
 let currentItem = null;
 let target = null;        // { rootPc, scaleId }
 let selectedScale = 'major';
+let rhythmOn = false;
+let rhythmBuckets = [];   // per-note rhythm buckets for the current run
 
 // ---- SRS pool ----
 function poolItems() {
@@ -43,16 +47,18 @@ function highlightNext() {
 }
 
 // ---- note dispatch (called from main.js on every note-on) ----
-export function scaleNoteOn(midiNote) {
+export function scaleNoteOn(midiNote, timestamp) {
   const s = engine.state();
   if (!s.active || s.done) return;
   const result = engine.noteOn(midiNote);
   if (result.event === 'wrong-start') {
-    // flash feedback
-    document.getElementById('scFeedback').textContent = `Start on ${pcName(target.rootPc)} (any octave)`;
+    document.getElementById('scFeedback').textContent = `Start on ${pcName(target.root)} (any octave)`;
     return;
   }
   if (result.event === 'correct') {
+    if (rhythmOn && timestamp) {
+      rhythmBuckets.push(scoreOnset(timestamp).bucket);
+    }
     highlightNext();
     updateProgress();
     return;
@@ -77,10 +83,19 @@ export function scaleNoteOn(midiNote) {
 async function finishRun() {
   const elapsed = performance.now() - promptStart;
   const s = engine.state();
-  const rating = s.errors > 3 ? Rating.Again
+  let rating = s.errors > 3 ? Rating.Again
     : s.errors > 0 || hadError ? Rating.Hard
     : elapsed < 8000 ? Rating.Easy
     : Rating.Good;
+
+  // factor in rhythm if active
+  let rhythmTag = '';
+  if (rhythmOn && rhythmBuckets.length) {
+    const avg = averageBucket(rhythmBuckets);
+    const rhythmRating = bucketToRating(avg);
+    rating = Math.min(rating, rhythmRating); // take the worse
+    rhythmTag = ` ${bucketEmoji(avg)}`;
+  }
   const { item, log } = gradeItem(currentItem, rating);
   currentItem = item;
   await putSrsItem(item);
@@ -88,7 +103,7 @@ async function finishRun() {
 
   const when = humanizeUntil(item.due);
   const fb = document.getElementById('scFeedback');
-  fb.textContent = `✓ ${s.errors === 0 ? 'Clean run!' : s.errors + ' error' + (s.errors > 1 ? 's' : '')} — next in ${when}`;
+  fb.textContent = `✓ ${s.errors === 0 ? 'Clean run!' : s.errors + ' error' + (s.errors > 1 ? 's' : '')} — next in ${when}${rhythmTag}`;
   fb.style.color = 'var(--accent2)';
   updateDueCount();
   setTimeout(nextScale, 1200);
@@ -101,6 +116,7 @@ export async function nextScale() {
   currentItem = item;
   target = item ? item.payload : null;
   hadError = false;
+  rhythmBuckets = [];
   promptStart = performance.now();
 
   if (target) engine.start(target.root, target.scaleId);
@@ -157,6 +173,10 @@ export async function renderScales() {
     <div class="controls">
       <select id="scScaleSelect">${scaleOpts}</select>
       <button id="scSkip">Skip ⟳</button>
+      <label class="rhythm-toggle"><input type="checkbox" id="scRhythm"> Play in time</label>
+      <div class="bpm-group" id="scBpmGroup" style="display:none;">
+        <label>BPM <input type="number" id="scBpm" value="80" min="40" max="200" step="5"></label>
+      </div>
     </div>`;
 
   document.getElementById('scScaleSelect').addEventListener('change', e => {
@@ -164,6 +184,22 @@ export async function renderScales() {
     nextScale();
   });
   document.getElementById('scSkip').addEventListener('click', skipScale);
+  document.getElementById('scRhythm')?.addEventListener('change', () => {
+    rhythmOn = document.getElementById('scRhythm').checked;
+    const bg = document.getElementById('scBpmGroup');
+    if (bg) bg.style.display = rhythmOn ? 'flex' : 'none';
+    if (rhythmOn) {
+      const bpm = parseInt(document.getElementById('scBpm')?.value, 10) || 80;
+      transport.start(bpm);
+    } else {
+      transport.stop();
+    }
+  });
+  document.getElementById('scBpm')?.addEventListener('change', () => {
+    if (rhythmOn && transport.isRunning()) {
+      transport.setBpm(parseInt(document.getElementById('scBpm').value, 10) || 80);
+    }
+  });
 
   await nextScale();
 }
@@ -171,4 +207,5 @@ export async function renderScales() {
 export function stopScales() {
   engine.reset();
   clearDemo();
+  if (rhythmOn) transport.stop();
 }

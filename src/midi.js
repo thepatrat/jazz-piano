@@ -10,13 +10,17 @@ function setStatus(txt, on, waiting = false) {
   dot.classList.toggle('waiting', !!waiting);
 }
 
-// handlers: { onNoteOn(note), onNoteOff(note) }
+import { currentAudioTime } from './transport.js';
+
+// handlers: { onNoteOn(note, timestamp), onNoteOff(note) }
+// timestamp is the AudioContext time at the moment of note-on (for rhythm scoring).
 export function initMIDI(handlers) {
+
   const handleMIDI = (msg) => {
     const [status, note, vel] = msg.data;
     const cmd = status & 0xf0;
     if (cmd === 0x90 && vel > 0) {
-      handlers.onNoteOn(note);
+      handlers.onNoteOn(note, currentAudioTime());
     } else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) {
       handlers.onNoteOff(note);
     }

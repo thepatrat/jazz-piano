@@ -10,7 +10,7 @@ import { buildKeyboard, paintKey, clearDemo } from './ui/keyboard.js';
 import { initMIDI } from './midi.js';
 import { toggleExplain, refreshExplain } from './ui/explain.js';
 import { renderDetect } from './modes/detect.js';
-import { initDrill, nextDrill, checkDrill } from './modes/drill.js';
+import { initDrill, nextDrill, checkDrill, stopDrill, drillNoteOnTimestamp } from './modes/drill.js';
 import { renderExerciseList, checkExercise } from './modes/exercises.js';
 import { renderScales, scaleNoteOn, stopScales } from './modes/scales.js';
 import { renderTheoryList } from './modes/theory.js';
@@ -31,6 +31,7 @@ function setMode(mo) {
   app.mode = mo;
   clearDemo(); // drop any keyboard highlights (Theory/Circle) when switching
   stopScales(); // clean up sequential engine when leaving Scales
+  stopDrill();  // stop metronome when leaving Drill
   document.getElementById('mDetect').classList.toggle('active', mo === 'detect');
   document.getElementById('mDrill').classList.toggle('active', mo === 'drill');
   document.getElementById('mExercises').classList.toggle('active', mo === 'exercises');
@@ -89,11 +90,13 @@ async function start() {
   }
 
   if (navigator.requestMIDIAccess) initMIDI({
-    onNoteOn: (note) => {
+    onNoteOn: (note, timestamp) => {
       activeNotes.add(note);
       paintKey(note, true);
       // scales needs individual note-on events (sequential engine)
-      if (app.mode === 'scales') scaleNoteOn(note);
+      if (app.mode === 'scales') scaleNoteOn(note, timestamp);
+      // drill stores the timestamp for rhythm scoring
+      if (app.mode === 'drill') drillNoteOnTimestamp(timestamp);
       onNotesChanged();
     },
     onNoteOff: (note) => {

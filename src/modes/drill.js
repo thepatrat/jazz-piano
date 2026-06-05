@@ -1,16 +1,10 @@
 // ============================================================
 //  modes/drill.js — spaced-repetition chord drilling (engine #1).
-//  The prompt now comes from the FSRS due queue (HANDOFF.md §5,
-//  Stage 2): each (root × quality) is an SrsItem. On each answer we
-//  derive a grade from performance and let FSRS reschedule it.
+//  The prompt comes from the FSRS due queue: each (root × quality)
+//  is an SrsItem. On each answer we derive a grade and reschedule.
 //
-//   skip / gave up  → Again
-//   correct, slow / after a wrong try → Hard
-//   correct in time → Good
-//   correct & fast  → Easy
-//
-//  Session stats (correct/streak/attempts/level) persist via kv;
-//  per-item schedules persist in the srsItems store.
+//  With "Play in time" toggled on, the metronome runs and the
+//  rhythm of the correct answer feeds into the FSRS grade.
 // ============================================================
 import { ROOTS, LEVELS, detectChord, chordMatchesTarget, chordLabel, pcName } from '../theory.js';
 import { drill, activeNotes } from '../state.js';
@@ -22,8 +16,13 @@ import {
   Rating, chordItemId, newSrsItem, gradeItem, humanizeUntil,
 } from '../srs.js';
 import { refreshExplain } from '../ui/explain.js';
+import * as transport from '../transport.js';
+import { scoreOnset, bucketEmoji, bucketToRating } from '../rhythmScore.js';
 
-// All chord SrsItems for a level (used for seeding and for the id pool).
+let rhythmOn = false;
+let lastOnsetTime = 0;
+
+// All chord SrsItems for a level
 function levelItems(level) {
   const items = [];
   for (const root of ROOTS) {
@@ -34,9 +33,7 @@ function levelItems(level) {
   }
   return items;
 }
-function levelIds(level) {
-  return levelItems(level).map(i => i.id);
-}
+function levelIds(level) { return levelItems(level).map(i => i.id); }
 
 function updateStats() {
   document.getElementById('sCorrect').textContent = drill.correct;
@@ -58,18 +55,49 @@ function persist() {
   });
 }
 
-// derive an FSRS grade from how the user answered
-function gradeFor(elapsedMs, hadError) {
-  if (hadError) return Rating.Hard;
-  if (elapsedMs < 2500) return Rating.Easy;
-  if (elapsedMs <= 6000) return Rating.Good;
-  return Rating.Hard;
+// derive an FSRS grade from how the user answered + optional rhythm
+function gradeFor(elapsedMs, hadError, rhythmBucket) {
+  let base;
+  if (hadError) base = Rating.Hard;
+  else if (elapsedMs < 2500) base = Rating.Easy;
+  else if (elapsedMs <= 6000) base = Rating.Good;
+  else base = Rating.Hard;
+
+  if (!rhythmOn || rhythmBucket === 'none') return base;
+  // rhythm modifies the grade: miss caps at Hard, perfect nudges toward Easy
+  const rhythmRating = bucketToRating(rhythmBucket);
+  return Math.min(base, rhythmRating); // take the worse of the two
 }
 
-// Pull the next due item for the current level and show it.
+// ---- transport controls ----
+function startMetronome() {
+  const bpmEl = document.getElementById('drillBpm');
+  const bpm = bpmEl ? parseInt(bpmEl.value, 10) || 80 : 80;
+  transport.start(bpm);
+}
+
+function stopMetronome() {
+  transport.stop();
+}
+
+function toggleRhythm() {
+  const cb = document.getElementById('drillRhythm');
+  rhythmOn = cb?.checked || false;
+  const bpmGroup = document.getElementById('drillBpmGroup');
+  if (bpmGroup) bpmGroup.style.display = rhythmOn ? 'flex' : 'none';
+  if (rhythmOn) startMetronome();
+  else stopMetronome();
+}
+
+// ---- store the timestamp of the most recent note-on ----
+export function drillNoteOnTimestamp(timestamp) {
+  lastOnsetTime = timestamp;
+}
+
+// ---- core drill flow ----
 export async function nextDrill() {
   drill.level = document.getElementById('drillLevel').value;
-  await seedSrsItems(levelItems(drill.level)); // ensure pool exists
+  await seedSrsItems(levelItems(drill.level));
   const item = await nextSrsItem(levelIds(drill.level));
   drill.currentItem = item;
   drill.target = item ? item.payload : null;
@@ -85,6 +113,8 @@ export async function nextDrill() {
   persist();
   await refreshDueCount();
   refreshExplain();
+
+  if (rhythmOn && !transport.isRunning()) startMetronome();
 }
 
 export async function checkDrill() {
@@ -96,11 +126,11 @@ export async function checkDrill() {
   const tEl = document.getElementById('drillTarget');
   const fb = document.getElementById('drillFeedback');
 
-  // judge by the target's notes, not the detector's name (handles ambiguous sets)
   if (chordMatchesTarget(notes, t)) {
     drill.answered = true;
     const elapsed = performance.now() - drill.promptStart;
-    const rating = gradeFor(elapsed, drill.hadError);
+    const rhythm = rhythmOn ? scoreOnset(lastOnsetTime) : { bucket: 'none' };
+    const rating = gradeFor(elapsed, drill.hadError, rhythm.bucket);
     await reviewCurrent(rating);
 
     drill.correct++;
@@ -108,13 +138,13 @@ export async function checkDrill() {
     drill.total++;
     tEl.className = 'big flash-ok';
     const when = humanizeUntil(drill.currentItem.due);
-    fb.textContent = `✓ ${chordLabel(t)} — next in ${when}`;
+    const rhythmTag = rhythmOn && rhythm.bucket !== 'none' ? ` ${bucketEmoji(rhythm.bucket)}` : '';
+    fb.textContent = `✓ ${chordLabel(t)} — next in ${when}${rhythmTag}`;
     updateStats();
     persist();
     await refreshDueCount();
     setTimeout(nextDrill, 900);
   } else {
-    // a complete, valid *different* chord → "try again" and remember the slip
     const c = detectChord(notes);
     if (!c) return;
     drill.hadError = true;
@@ -123,22 +153,16 @@ export async function checkDrill() {
   }
 }
 
-// grade + persist the current item, and append to the review log
 async function reviewCurrent(rating) {
   const { item, log } = gradeItem(drill.currentItem, rating);
   drill.currentItem = item;
   await putSrsItem(item);
   await logReview({
-    itemId: item.id,
-    ts: Date.now(),
-    rating,
-    state: log.state,
-    stability: log.stability,
-    difficulty: log.difficulty,
+    itemId: item.id, ts: Date.now(), rating,
+    state: log.state, stability: log.stability, difficulty: log.difficulty,
   });
 }
 
-// "Skip" = couldn't play it → grade Again, reset streak, move on.
 export async function skipDrill() {
   if (drill.currentItem && !drill.answered) {
     drill.answered = true;
@@ -149,6 +173,11 @@ export async function skipDrill() {
     persist();
   }
   nextDrill();
+}
+
+// called when leaving Drill mode
+export function stopDrill() {
+  if (rhythmOn) stopMetronome();
 }
 
 // Restore persisted stats/level, wire controls, then load the first prompt.
@@ -166,4 +195,10 @@ export async function initDrill() {
 
   sel.addEventListener('change', nextDrill);
   document.getElementById('drillSkip').addEventListener('click', skipDrill);
+  document.getElementById('drillRhythm')?.addEventListener('change', toggleRhythm);
+  document.getElementById('drillBpm')?.addEventListener('change', () => {
+    if (rhythmOn && transport.isRunning()) {
+      transport.setBpm(parseInt(document.getElementById('drillBpm').value, 10) || 80);
+    }
+  });
 }
