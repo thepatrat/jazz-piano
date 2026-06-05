@@ -29,9 +29,12 @@ h1 {
 h1 span { color: var(--accent); font-style: italic; margin-left: 2px; }
 .sub { color: var(--muted); font-size: 13px; margin-top: 6px; max-width: 380px; }
 
-.header-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+.below-kb {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:14px; margin-bottom:8px; gap:12px; flex-wrap:wrap;
+}
 .metro-bar {
-  display:flex; align-items:center; gap:10px; font-size:12px; color:var(--muted);
+  display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);
   background:var(--panel); border:1px solid var(--line); border-radius:10px;
   padding:7px 14px;
 }
@@ -54,7 +57,12 @@ h1 span { color: var(--accent); font-style: italic; margin-left: 2px; }
   width:48px; background:transparent; color:var(--ink); border:1px solid var(--line);
   padding:3px 4px; border-radius:5px; font-family:inherit; font-size:12px; text-align:center;
 }
-.metro-sig { color:var(--muted); font-size:11px; letter-spacing:1px; }
+.metro-num, .metro-denom {
+  background:var(--panel); color:var(--ink); border:1px solid var(--line);
+  padding:2px 4px; border-radius:5px; font-family:inherit; font-size:12px;
+  text-align:center; width:36px;
+}
+.metro-slash { color:var(--muted); font-size:14px; margin:0 -2px; }
 .status { font-size: 12px; display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--wrong); box-shadow: 0 0 10px var(--wrong); }
 .dot.on { background: var(--accent2); box-shadow: 0 0 10px var(--accent2); }
@@ -339,8 +347,9 @@ a { color: var(--accent2); }
   .ex-card h3 { font-size: 16px; }
   .runner-head h3 { font-size: 18px; }
   .th-body { font-size: 13px; }
-  .header-right { align-items:stretch; }
+  .below-kb { flex-direction:column; align-items:stretch; gap:10px; }
   .metro-bar { justify-content:center; padding:6px 10px; }
   .metro-bpm { width:42px; font-size:11px; }
+  .donate { text-align:center; }
   .footer-note { font-size: 10px; }
 }

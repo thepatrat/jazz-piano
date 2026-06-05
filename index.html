@@ -31,19 +31,7 @@
       <h1>Jazz<span>Buddy</span></h1>
       <div class="sub">Your free jazz piano practice partner. Connect your e-piano via USB MIDI and play.</div>
     </div>
-    <div class="header-right">
-      <div class="metro-bar" id="metroBar">
-        <button class="metro-toggle" id="metroToggle" title="Start / stop metronome">
-          <span class="metro-icon" id="metroIcon">▶</span>
-        </button>
-        <div class="metro-beats" id="metroBeats">
-          <span class="metro-dot"></span><span class="metro-dot"></span><span class="metro-dot"></span><span class="metro-dot"></span>
-        </div>
-        <input type="number" class="metro-bpm" id="metroBpm" value="80" min="40" max="200" step="5" title="BPM">
-        <span class="metro-sig">4/4</span>
-      </div>
-      <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">No MIDI device</span></div>
-    </div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">No MIDI device</span></div>
   </header>
 
   <div class="modes">
@@ -122,10 +110,31 @@
 
   <div class="kb-wrap"><div class="kb" id="kb"></div></div>
 
-  <footer>
-    <div class="footer-actions">
-      <a class="donate" href="https://ko-fi.com/YOUR_HANDLE" target="_blank" rel="noopener">☕ Buy Patrick a coffee</a>
+  <div class="below-kb">
+    <a class="donate" href="https://ko-fi.com/YOUR_HANDLE" target="_blank" rel="noopener">☕ Buy Patrick a coffee</a>
+    <div class="metro-bar" id="metroBar">
+      <button class="metro-toggle" id="metroToggle" title="Start / stop metronome">
+        <span class="metro-icon" id="metroIcon">▶</span>
+      </button>
+      <div class="metro-beats" id="metroBeats"></div>
+      <input type="number" class="metro-bpm" id="metroBpm" value="80" min="40" max="200" step="5" title="BPM">
+      <select class="metro-num" id="metroNum" title="Beats per bar">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+      </select>
+      <span class="metro-slash">/</span>
+      <select class="metro-denom" id="metroDenom" title="Beat unit">
+        <option value="4" selected>4</option>
+        <option value="8">8</option>
+      </select>
     </div>
+  </div>
+
+  <footer>
     <div class="footer-note">
       Free &amp; open-source. All your progress stays in your browser — nothing is uploaded, no account needed.<br>
       Works in Chrome, Edge &amp; Opera (Web MIDI). Connect your e-piano via USB and allow MIDI access.

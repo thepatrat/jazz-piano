@@ -58,16 +58,34 @@ function setMode(mo) {
 }
 
 // ---- global metronome bar ----
+let beatsPerBar = 4;
+
+function buildDots() {
+  const container = document.getElementById('metroBeats');
+  container.innerHTML = '';
+  for (let i = 0; i < beatsPerBar; i++) {
+    const d = document.createElement('span');
+    d.className = 'metro-dot';
+    container.appendChild(d);
+  }
+}
+
 function wireMetronome() {
   const toggle = document.getElementById('metroToggle');
   const bpmInput = document.getElementById('metroBpm');
-  const dots = document.querySelectorAll('#metroBeats .metro-dot');
+  const numSel = document.getElementById('metroNum');
+  const denomSel = document.getElementById('metroDenom');
+
+  buildDots();
 
   function updateToggleUI() {
     const on = transport.isRunning();
     toggle.classList.toggle('on', on);
     document.getElementById('metroIcon').textContent = on ? '⏸' : '▶';
-    if (!on) dots.forEach(d => { d.classList.remove('lit', 'accent'); });
+    if (!on) {
+      document.querySelectorAll('#metroBeats .metro-dot')
+        .forEach(d => d.classList.remove('lit', 'accent'));
+    }
   }
 
   toggle.addEventListener('click', () => {
@@ -86,9 +104,15 @@ function wireMetronome() {
     if (transport.isRunning()) transport.setBpm(bpm);
   });
 
-  // light the dots on each beat (4/4 cycle)
+  numSel.addEventListener('change', () => {
+    beatsPerBar = parseInt(numSel.value, 10) || 4;
+    buildDots();
+  });
+
+  // light the dots on each beat
   transport.onBeat(({ beat }) => {
-    const idx = beat % 4;
+    const dots = document.querySelectorAll('#metroBeats .metro-dot');
+    const idx = beat % beatsPerBar;
     dots.forEach((d, i) => {
       d.classList.toggle('lit', i === idx);
       d.classList.toggle('accent', i === idx && idx === 0);
