@@ -35,6 +35,7 @@
   </header>
 
   <div class="modes">
+    <button id="mPlan" data-mode="plan">Plan</button>
     <button id="mDetect" class="active" data-mode="detect">Detect</button>
     <button id="mDrill" data-mode="drill">Drill</button>
     <button id="mExercises" data-mode="exercises">Exercises</button>
@@ -44,6 +45,9 @@
   </div>
 
   <div class="stage" id="stage">
+    <!-- PLAN (roadmap) -->
+    <div id="planView" style="display:none; width:100%;"></div>
+
     <!-- DETECT -->
     <div id="detectView">
       <div class="label">Chord detected</div>

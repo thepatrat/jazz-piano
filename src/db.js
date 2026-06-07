@@ -106,3 +106,14 @@ export async function countDue(ids, now = Date.now()) {
 export function logReview(entry) {
   return db.reviewLog.add(entry);
 }
+
+// ---- Plan / roadmap progress (Stage 4) ----
+// One kv row keyed by node id: { [nodeId]: { practiced, lastTs, mastered } }.
+const PLAN_PROGRESS_KEY = 'plan:progress';
+
+export function loadPlanProgress() {
+  return kvGet(PLAN_PROGRESS_KEY, {});
+}
+export function savePlanProgress(progress) {
+  return kvSet(PLAN_PROGRESS_KEY, progress);
+}

@@ -10,13 +10,15 @@ import { buildKeyboard, paintKey, clearDemo } from './ui/keyboard.js';
 import { initMIDI } from './midi.js';
 import { toggleExplain, refreshExplain } from './ui/explain.js';
 import * as transport from './transport.js';
+import { setNavigator } from './nav.js';
 import { renderDetect } from './modes/detect.js';
 import { initDrill, nextDrill, checkDrill, stopDrill, drillNoteOnTimestamp } from './modes/drill.js';
-import { renderExerciseList, checkExercise, exerciseNoteOn } from './modes/exercises.js';
-import { renderScales, scaleNoteOn, stopScales } from './modes/scales.js';
-import { renderTheoryList } from './modes/theory.js';
+import { renderExerciseList, checkExercise, exerciseNoteOn, openExercise } from './modes/exercises.js';
+import { renderScales, scaleNoteOn, stopScales, setScaleSelection } from './modes/scales.js';
+import { renderTheoryList, openTopic } from './modes/theory.js';
 import { renderCircle } from './modes/circle.js';
 import { circleNoteChanged } from './modes/circleTrainer.js';
+import { renderPlan } from './modes/plan.js';
 
 // ---- dispatch a note change to whichever mode is active ----
 function onNotesChanged() {
@@ -28,27 +30,45 @@ function onNotesChanged() {
 }
 
 // ---- mode switching ----
-function setMode(mo) {
+// opts (optional) lets the Plan roadmap launch a mode preconfigured, e.g.
+// { level } for drill, { moduleId } for exercises, { topicId } for theory,
+// { root, scaleId } for scales.
+function setMode(mo, opts = {}) {
   app.mode = mo;
   clearDemo(); // drop any keyboard highlights (Theory/Circle) when switching
   stopScales(); // clean up sequential engine when leaving Scales
   stopDrill();  // stop metronome when leaving Drill
+  document.getElementById('mPlan').classList.toggle('active', mo === 'plan');
   document.getElementById('mDetect').classList.toggle('active', mo === 'detect');
   document.getElementById('mDrill').classList.toggle('active', mo === 'drill');
   document.getElementById('mExercises').classList.toggle('active', mo === 'exercises');
   document.getElementById('mScales').classList.toggle('active', mo === 'scales');
   document.getElementById('mTheory').classList.toggle('active', mo === 'theory');
   document.getElementById('mCircle').classList.toggle('active', mo === 'circle');
+  document.getElementById('planView').style.display = mo === 'plan' ? 'block' : 'none';
   document.getElementById('detectView').style.display = mo === 'detect' ? 'block' : 'none';
   document.getElementById('drillView').style.display = mo === 'drill' ? 'block' : 'none';
   document.getElementById('exercisesView').style.display = mo === 'exercises' ? 'block' : 'none';
   document.getElementById('scalesView').style.display = mo === 'scales' ? 'block' : 'none';
   document.getElementById('theoryView').style.display = mo === 'theory' ? 'block' : 'none';
   document.getElementById('circleView').style.display = mo === 'circle' ? 'block' : 'none';
-  if (mo === 'drill' && !drill.target) nextDrill();
-  if (mo === 'exercises') renderExerciseList();
-  if (mo === 'scales') renderScales();
-  if (mo === 'theory') renderTheoryList();
+  if (mo === 'plan') renderPlan();
+  if (mo === 'drill') {
+    if (opts.level) document.getElementById('drillLevel').value = opts.level;
+    if (opts.level || !drill.target) nextDrill();
+  }
+  if (mo === 'exercises') {
+    renderExerciseList();
+    if (opts.moduleId) openExercise(opts.moduleId);
+  }
+  if (mo === 'scales') {
+    if (opts.root != null) setScaleSelection(opts.root, opts.scaleId);
+    renderScales();
+  }
+  if (mo === 'theory') {
+    renderTheoryList();
+    if (opts.topicId) openTopic(opts.topicId);
+  }
   if (mo === 'circle') renderCircle();
   // sync explainer panels to current open-state
   document.getElementById('explainPanel').classList.toggle('open', app.explainOpen && mo === 'detect');
@@ -134,6 +154,7 @@ function wireControls() {
 async function start() {
   buildKeyboard();
   wireControls();
+  setNavigator(setMode); // let Plan roadmap launch other modes preconfigured
   await initDrill(); // restore drill stats/level + wire its controls
 
   // browser-support banner (Safari/Firefox — no Web MIDI)

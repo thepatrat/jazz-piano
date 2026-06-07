@@ -353,3 +353,61 @@ a { color: var(--accent2); }
   .donate { text-align:center; }
   .footer-note { font-size: 10px; }
 }
+
+/* ============================================================
+   PLAN MODE — the roadmap path
+   ============================================================ */
+.rm-intro { color: var(--muted); font-size: 13px; line-height: 1.6; margin-bottom: 16px; max-width: 560px; }
+.rm-map { width: 100%; overflow: hidden; }
+.rm-svg { width: 100%; height: auto; display: block; }
+
+/* level header bands */
+.rm-band-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px; fill: var(--ink); }
+.rm-band-sub { font-size: 16px; fill: var(--muted); }
+.rm-band-rule { stroke: var(--line); stroke-width: 1.5; }
+
+/* the connecting trail */
+.rm-track { fill: none; stroke: var(--line); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 16; }
+
+/* nodes */
+.rm-node { cursor: pointer; outline: none; }
+.rm-disc { fill: var(--panel); stroke: var(--line); stroke-width: 3; transition: stroke .15s, fill .15s; }
+.rm-icon { font-size: 30px; text-anchor: middle; dominant-baseline: central; }
+.rm-label { font-size: 18px; fill: var(--muted); text-anchor: middle; }
+.rm-check { font-size: 22px; fill: var(--accent2); text-anchor: middle; dominant-baseline: central; font-weight: 700; }
+
+.rm-node:hover .rm-disc { stroke: var(--accent); }
+.rm-node:focus-visible .rm-disc { stroke: var(--accent); }
+.rm-node.progress .rm-disc { stroke: var(--accent); fill: #2a2117; }
+.rm-node.mastered .rm-disc { stroke: var(--accent2); fill: #1b2a23; }
+.rm-node.progress .rm-label,
+.rm-node.mastered .rm-label { fill: var(--ink); }
+.rm-node.selected .rm-disc { stroke-width: 5; filter: drop-shadow(0 0 6px var(--accent)); }
+.rm-node.mastered.selected .rm-disc { filter: drop-shadow(0 0 6px var(--accent2)); }
+
+/* detail panel */
+.rm-detail { margin-top: 18px; border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; background: var(--panel); }
+.rm-detail-empty { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.rm-d-top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.rm-d-top h3 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 22px; }
+.rm-d-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.rm-d-blurb { color: var(--ink); font-size: 14px; line-height: 1.6; margin-top: 12px; }
+.rm-d-moveon { color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 12px; border-left: 2px solid var(--accent); padding-left: 12px; }
+.rm-d-moveon b { color: var(--accent); }
+.rm-d-stats { font-size: 12px; color: var(--accent2); margin-top: 12px; letter-spacing: .3px; }
+.rm-d-stats.rm-d-muted { color: var(--muted); }
+.rm-d-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.rm-practice { background: var(--accent); color: var(--bg); border: none; border-radius: 8px; padding: 9px 16px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rm-practice:hover { filter: brightness(1.08); }
+.rm-master { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 9px 16px; font-family: inherit; font-size: 13px; cursor: pointer; }
+.rm-master:hover { border-color: var(--accent2); color: var(--accent2); }
+.rm-master.on { color: var(--accent2); border-color: var(--accent2); }
+
+@media (max-width: 480px) {
+  .rm-icon { font-size: 38px; }
+  .rm-label { font-size: 22px; }
+  .rm-band-title { font-size: 38px; }
+  .rm-band-sub { font-size: 19px; }
+  .rm-d-actions { flex-direction: column; align-items: stretch; }
+  .rm-practice, .rm-master { width: 100%; }
+}

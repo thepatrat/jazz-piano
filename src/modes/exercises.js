@@ -31,7 +31,7 @@ export function renderExerciseList() {
   });
 }
 
-async function openExercise(id) {
+export async function openExercise(id) {
   const m = EXERCISE_MODULES.find(x => x.id === id);
   exState.module = m;
   exState.seq = m.generate ? m.generate() : [];

@@ -93,6 +93,13 @@ export function renderScales() {
   render();
 }
 
+// Preselect a root (pitch class) + scale id before rendering — used by
+// the Plan roadmap to launch this view on a specific scale.
+export function setScaleSelection(root, scaleId) {
+  if (root != null) selectedRoot = root;
+  if (scaleId) selectedScale = scaleId;
+}
+
 export function stopScales() {
   clearDemo();
 }

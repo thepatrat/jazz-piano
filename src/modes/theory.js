@@ -42,7 +42,7 @@ export function renderTheoryList() {
   });
 }
 
-function openTopic(id) {
+export function openTopic(id) {
   const t = THEORY_TOPICS.find(x => x.id === id);
   clearTheoryDemo();
   document.getElementById('thListWrap').style.display = 'none';
