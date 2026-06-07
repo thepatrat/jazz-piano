@@ -411,3 +411,41 @@ a { color: var(--accent2); }
   .rm-d-actions { flex-direction: column; align-items: stretch; }
   .rm-practice, .rm-master { width: 100%; }
 }
+
+/* ============================================================
+   PLAY MODE — VexFlow play-along
+   ============================================================ */
+.play-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.play-controls select, .play-controls input[type="number"] {
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px;
+}
+.play-controls label { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.play-bpm input { width: 64px; }
+.play-diff input[type="range"] { width: 90px; }
+#playDiffLbl { color: var(--accent2); min-width: 56px; }
+#playToggle {
+  background: var(--accent); color: var(--bg); border: none; border-radius: 8px;
+  padding: 9px 18px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+#playToggle:hover { filter: brightness(1.08); }
+
+.play-stage { position: relative; }
+.play-strip-wrap { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 8px 0; }
+.play-strip { transition: transform 60ms linear; will-change: transform; }
+.play-playhead {
+  position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent);
+  z-index: 3; pointer-events: none; box-shadow: 0 0 8px var(--accent);
+}
+.play-feedback { min-height: 24px; margin-top: 12px; font-size: 15px; text-align: center; }
+.pf-ok { color: var(--accent2); font-weight: 600; }
+.pf-count { color: var(--accent); letter-spacing: 1px; }
+.play-hint { color: var(--muted); font-size: 12px; margin-top: 10px; line-height: 1.6; }
+.play-hint .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: middle; margin: 0 2px 0 8px; }
+.play-hint .sw.o { background: var(--accent); }
+.play-hint .sw.g { background: var(--accent2); }
+
+@media (max-width: 480px) {
+  .play-controls { gap: 8px; }
+  .play-controls select, .play-controls input[type="number"] { font-size: 12px; padding: 7px 8px; }
+}

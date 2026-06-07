@@ -19,6 +19,7 @@ import { renderTheoryList, openTopic } from './modes/theory.js';
 import { renderCircle } from './modes/circle.js';
 import { circleNoteChanged } from './modes/circleTrainer.js';
 import { renderPlan } from './modes/plan.js';
+import { renderPlay, stopPlay, playNoteOn, checkPlay } from './modes/play.js';
 
 // ---- dispatch a note change to whichever mode is active ----
 function onNotesChanged() {
@@ -26,6 +27,7 @@ function onNotesChanged() {
   else if (app.mode === 'drill') checkDrill();
   else if (app.mode === 'exercises') checkExercise();
   else if (app.mode === 'circle') circleNoteChanged();
+  else if (app.mode === 'play') checkPlay();
   refreshExplain();
 }
 
@@ -38,6 +40,7 @@ function setMode(mo, opts = {}) {
   clearDemo(); // drop any keyboard highlights (Theory/Circle) when switching
   stopScales(); // clean up sequential engine when leaving Scales
   stopDrill();  // stop metronome when leaving Drill
+  stopPlay();   // stop transport + scroll loop when leaving Play
   document.getElementById('mPlan').classList.toggle('active', mo === 'plan');
   document.getElementById('mDetect').classList.toggle('active', mo === 'detect');
   document.getElementById('mDrill').classList.toggle('active', mo === 'drill');
@@ -45,6 +48,7 @@ function setMode(mo, opts = {}) {
   document.getElementById('mScales').classList.toggle('active', mo === 'scales');
   document.getElementById('mTheory').classList.toggle('active', mo === 'theory');
   document.getElementById('mCircle').classList.toggle('active', mo === 'circle');
+  document.getElementById('mPlay').classList.toggle('active', mo === 'play');
   document.getElementById('planView').style.display = mo === 'plan' ? 'block' : 'none';
   document.getElementById('detectView').style.display = mo === 'detect' ? 'block' : 'none';
   document.getElementById('drillView').style.display = mo === 'drill' ? 'block' : 'none';
@@ -52,7 +56,9 @@ function setMode(mo, opts = {}) {
   document.getElementById('scalesView').style.display = mo === 'scales' ? 'block' : 'none';
   document.getElementById('theoryView').style.display = mo === 'theory' ? 'block' : 'none';
   document.getElementById('circleView').style.display = mo === 'circle' ? 'block' : 'none';
+  document.getElementById('playView').style.display = mo === 'play' ? 'block' : 'none';
   if (mo === 'plan') renderPlan();
+  if (mo === 'play') renderPlay();
   if (mo === 'drill') {
     if (opts.level) document.getElementById('drillLevel').value = opts.level;
     if (opts.level || !drill.target) nextDrill();
@@ -184,13 +190,15 @@ async function start() {
       if (app.mode === 'exercises') exerciseNoteOn(note);
       // drill stores the timestamp for rhythm scoring
       if (app.mode === 'drill') drillNoteOnTimestamp(timestamp);
+      // play scores onset timing against the transport
+      if (app.mode === 'play') playNoteOn(note, timestamp);
       onNotesChanged();
     },
     onNoteOff: (note) => {
       activeNotes.delete(note);
       paintKey(note, false);
-      // in drill/exercises we keep feedback on release; detect, circle & scales update live
-      if (app.mode === 'detect' || app.mode === 'circle' || app.mode === 'scales') onNotesChanged();
+      // in drill/exercises we keep feedback on release; detect, circle, scales & play update live
+      if (['detect', 'circle', 'scales', 'play'].includes(app.mode)) onNotesChanged();
     },
   });
 

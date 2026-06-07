@@ -214,3 +214,63 @@ export function chordLabel(c) {
   const suffix = c.quality === 'maj' ? '' : c.quality;
   return name + suffix;
 }
+
+// ============================================================
+//  NOTATION HELPERS (Stage 5 — Play mode)
+//  Pure conversions: MIDI/quality → VexFlow tokens + chord text,
+//  plus a difficulty-driven chord simplifier (also reusable by the
+//  roadmap later). No DOM, no VexFlow import — just strings.
+// ============================================================
+
+// Beats (in quarter-note units, 4/4) → { duration, dots } for VexFlow.
+export function beatsToDuration(beats) {
+  const table = [
+    [4, 'w', 0], [3, 'h', 1], [2, 'h', 0], [1.5, 'q', 1],
+    [1, 'q', 0], [0.75, '8', 1], [0.5, '8', 0], [0.25, '16', 0],
+  ];
+  let best = table[4]; // default quarter
+  let bestErr = Infinity;
+  for (const row of table) {
+    const err = Math.abs(row[0] - beats);
+    if (err < bestErr) { bestErr = err; best = row; }
+  }
+  return { duration: best[1], dots: best[2] };
+}
+
+// MIDI note → { key:'c#/4', accidental:'#'|'b'|null } for VexFlow (C4 = middle C = MIDI 60).
+export function midiToVexKey(midi, preferFlat = false) {
+  const pc = ((midi % 12) + 12) % 12;
+  const octave = Math.floor(midi / 12) - 1;
+  const name = pcName(pc, preferFlat);        // 'C', 'C#', or 'Db'
+  const letter = name[0].toLowerCase();
+  const accidental = name[1] ? (name[1] === '#' ? '#' : 'b') : null;
+  return { key: `${letter}${accidental || ''}/${octave}`, accidental };
+}
+
+// Pretty chord-symbol suffix per quality (used for staff chord symbols).
+const CHORD_SUFFIX = {
+  maj: '', m: 'm', dim: '°', aug: '+', maj7: 'maj7', m7: 'm7', '7': '7',
+  m7b5: 'm7♭5', dim7: '°7', mMaj7: 'mMaj7', '6': '6', m6: 'm6', '9': '9',
+  add9: 'add9', sus4: 'sus4', sus2: 'sus2', '5': '5',
+};
+
+// Chord symbol text, key-aware spelling (prefer flats in flat keys).
+export function spellChord({ root, quality }, preferFlat = false) {
+  const name = pcName(root, preferFlat);
+  const suffix = CHORD_SUFFIX[quality] ?? quality;
+  return name + suffix;
+}
+
+// Difficulty: 1 = triads, 2 = sevenths, 3 = as authored.
+const TRIAD_OF = {
+  maj: 'maj', m: 'm', dim: 'dim', aug: 'aug', sus4: 'sus4', sus2: 'sus2', '5': '5',
+  maj7: 'maj', '6': 'maj', add9: 'maj', '9': 'maj', '7': 'maj',
+  m7: 'm', m6: 'm', mMaj7: 'm', m7b5: 'dim', dim7: 'dim',
+};
+const SEVENTH_OF = { '9': '7', add9: 'maj', '6': 'maj', m6: 'm' };
+
+export function simplifyQuality(quality, level = 3) {
+  if (level <= 1) return TRIAD_OF[quality] || quality;
+  if (level === 2) return SEVENTH_OF[quality] || quality;
+  return quality;
+}
