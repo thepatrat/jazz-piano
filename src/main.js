@@ -20,6 +20,7 @@ import { renderCircle } from './modes/circle.js';
 import { circleNoteChanged } from './modes/circleTrainer.js';
 import { renderPlan } from './modes/plan.js';
 import { renderPlay, stopPlay, playNoteOn, checkPlay } from './modes/play.js';
+import { renderFindKey, stopFindKey, findKeyNoteChanged } from './modes/findKey.js';
 
 // ---- dispatch a note change to whichever mode is active ----
 function onNotesChanged() {
@@ -28,6 +29,7 @@ function onNotesChanged() {
   else if (app.mode === 'exercises') checkExercise();
   else if (app.mode === 'circle') circleNoteChanged();
   else if (app.mode === 'play') checkPlay();
+  else if (app.mode === 'findkey') findKeyNoteChanged();
   refreshExplain();
 }
 
@@ -41,6 +43,7 @@ function setMode(mo, opts = {}) {
   stopScales(); // clean up sequential engine when leaving Scales
   stopDrill();  // stop metronome when leaving Drill
   stopPlay();   // stop transport + scroll loop when leaving Play
+  stopFindKey(); // clear embedded video when leaving Find Key
   document.getElementById('mPlan').classList.toggle('active', mo === 'plan');
   document.getElementById('mDetect').classList.toggle('active', mo === 'detect');
   document.getElementById('mDrill').classList.toggle('active', mo === 'drill');
@@ -49,6 +52,7 @@ function setMode(mo, opts = {}) {
   document.getElementById('mTheory').classList.toggle('active', mo === 'theory');
   document.getElementById('mCircle').classList.toggle('active', mo === 'circle');
   document.getElementById('mPlay').classList.toggle('active', mo === 'play');
+  document.getElementById('mFindKey').classList.toggle('active', mo === 'findkey');
   document.getElementById('planView').style.display = mo === 'plan' ? 'block' : 'none';
   document.getElementById('detectView').style.display = mo === 'detect' ? 'block' : 'none';
   document.getElementById('drillView').style.display = mo === 'drill' ? 'block' : 'none';
@@ -57,8 +61,10 @@ function setMode(mo, opts = {}) {
   document.getElementById('theoryView').style.display = mo === 'theory' ? 'block' : 'none';
   document.getElementById('circleView').style.display = mo === 'circle' ? 'block' : 'none';
   document.getElementById('playView').style.display = mo === 'play' ? 'block' : 'none';
+  document.getElementById('findKeyView').style.display = mo === 'findkey' ? 'block' : 'none';
   if (mo === 'plan') renderPlan();
   if (mo === 'play') renderPlay();
+  if (mo === 'findkey') renderFindKey();
   if (mo === 'drill') {
     if (opts.level) document.getElementById('drillLevel').value = opts.level;
     if (opts.level || !drill.target) nextDrill();
@@ -198,7 +204,7 @@ async function start() {
       activeNotes.delete(note);
       paintKey(note, false);
       // in drill/exercises we keep feedback on release; detect, circle, scales & play update live
-      if (['detect', 'circle', 'scales', 'play'].includes(app.mode)) onNotesChanged();
+      if (['detect', 'circle', 'scales', 'play', 'findkey'].includes(app.mode)) onNotesChanged();
     },
   });
 

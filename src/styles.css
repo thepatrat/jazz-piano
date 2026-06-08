@@ -449,3 +449,47 @@ a { color: var(--accent2); }
   .play-controls { gap: 8px; }
   .play-controls select, .play-controls input[type="number"] { font-size: 12px; padding: 7px 8px; }
 }
+
+/* ============================================================
+   FIND THE KEY — ear training
+   ============================================================ */
+.fk-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.fk-nav { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.fk-nav button {
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 12px; font-family: inherit; font-size: 13px; cursor: pointer;
+}
+.fk-nav button:hover { border-color: var(--accent); }
+.fk-video { margin-bottom: 16px; }
+.fk-nowplaying { color: var(--accent2); font-size: 13px; margin: -6px 0 14px; min-height: 18px; }
+.fk-nowplaying .fk-dim { color: var(--muted); }
+.fk-novideo {
+  border: 1px dashed var(--line); border-radius: 12px; padding: 28px 20px; text-align: center;
+  color: var(--muted); font-size: 14px; line-height: 1.7;
+}
+.fk-novideo code { color: var(--accent2); font-size: 12px; }
+.fk-layout { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.fk-last { color: var(--muted); font-size: 13px; margin-top: 10px; min-height: 20px; }
+.fk-actions { display: flex; gap: 10px; margin-top: 14px; }
+.fk-actions button {
+  border-radius: 8px; padding: 9px 18px; font-family: inherit; font-size: 14px; cursor: pointer;
+}
+#fkCheck { background: var(--accent); color: var(--bg); border: none; font-weight: 600; }
+#fkCheck:hover:not(:disabled) { filter: brightness(1.08); }
+#fkCheck:disabled { opacity: .45; cursor: default; }
+#fkReveal { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+#fkReveal:hover { border-color: var(--accent2); color: var(--accent2); }
+.fk-ok { color: var(--accent2); font-weight: 600; }
+.fk-no { color: var(--wrong); font-weight: 600; }
+.fk-reveal { color: var(--accent); font-weight: 600; }
+
+/* circle node states for guessing (the SVG reuses .cf-node markup) */
+#fkSvg .cf-node { cursor: pointer; }
+#fkSvg .cf-node.guess circle { stroke: var(--accent); stroke-width: 3; }
+#fkSvg .cf-node.correct circle { fill: var(--accent2); stroke: var(--accent2); }
+#fkSvg .cf-node.wrong circle { stroke: var(--wrong); stroke-width: 3; }
+
+@media (max-width: 480px) {
+  .fk-layout { flex-direction: column; }
+  .fk-actions { flex-direction: column; align-items: stretch; }
+}
