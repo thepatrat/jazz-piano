@@ -479,6 +479,24 @@ a { color: var(--accent2); }
 #fkCheck:disabled { opacity: .45; cursor: default; }
 #fkReveal { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 #fkReveal:hover { border-color: var(--accent2); color: var(--accent2); }
+.fk-curator { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.fk-curator summary { cursor: pointer; color: var(--muted); font-size: 12px; letter-spacing: .5px; }
+.fk-curator summary:hover { color: var(--accent2); }
+.fk-cur-body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.fk-cur-body button {
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 12px; font-family: inherit; font-size: 13px; cursor: pointer;
+}
+.fk-cur-body button:hover:not(:disabled) { border-color: var(--accent2); color: var(--accent2); }
+.fk-cur-body button:disabled { opacity: .45; cursor: default; }
+#fkExportOut {
+  width: 100%; min-height: 84px; resize: vertical; background: var(--bg); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-family: 'Spline Sans Mono', monospace;
+  font-size: 11px; line-height: 1.5;
+}
+.fk-cur-note { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.fk-cur-note code { color: var(--accent2); }
+
 .fk-ok { color: var(--accent2); font-weight: 600; }
 .fk-no { color: var(--wrong); font-weight: 600; }
 .fk-reveal { color: var(--accent); font-weight: 600; }

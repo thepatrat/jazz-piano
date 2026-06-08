@@ -17,8 +17,14 @@ import {
   ringMarkup, nodesMarkup, arrowDefs, PC_TO_INDEX, MINOR_PC_TO_INDEX,
 } from '../ui/circleGeom.js';
 import { CIRCLE_FIFTHS } from '../data/circle.js';
-import { PLAYLIST, keyFor, keyName } from '../data/keyChallenges.js';
+import { PLAYLIST, KEY_BY_VIDEO, keyFor, keyName } from '../data/keyChallenges.js';
 import { paintDemo, clearDemo } from '../ui/keyboard.js';
+import { loadFindKeyAnswers, saveFindKeyAnswers } from '../db.js';
+
+// Locally-curated answers (this browser), layered OVER the shipped KEY_BY_VIDEO.
+let savedAnswers = {};
+const FLAT_PCS = new Set([1, 3, 5, 6, 8, 10]); // keys conventionally spelled with flats
+const answerFor = (vid) => (vid && savedAnswers[vid]) || keyFor(vid);
 
 let active = false;
 let guess = null;          // { pc, mode:'major'|'minor', index, inner }
@@ -88,14 +94,10 @@ function syncVideo() {
   if (!vid || vid === currentVideoId) return;
   currentVideoId = vid;
   currentTitle = data.title || '';
-  currentAnswer = keyFor(vid);
+  currentAnswer = answerFor(vid);
   const np = document.getElementById('fkNowPlaying');
-  if (np) {
-    np.dataset.vid = vid; // current clip id (handy for curating its key later)
-    np.innerHTML = currentTitle
-      ? `▸ Now playing: <b>${escapeHtml(currentTitle)}</b>${currentAnswer ? '' : ' <span class="fk-dim">— no stored key (self-check)</span>'}`
-      : '';
-  }
+  if (np) np.dataset.vid = vid; // current clip id (handy for curating its key)
+  refreshNowPlaying();
   reset();
 }
 
@@ -157,6 +159,8 @@ function setGuess(g) {
   document.querySelectorAll('#fkSvg .cf-node').forEach(n => n.classList.remove('guess'));
   g.classList.add('guess');
   document.getElementById('fkLock').disabled = false;
+  const sv = document.getElementById('fkSave');
+  if (sv) sv.disabled = !currentVideoId;
   setStatus(`You picked <b>${keyName({ keyPc: pc, keyMode: guess.mode, preferFlat: false })}</b>. Lock it in.`);
 }
 
@@ -214,6 +218,8 @@ function reset() {
   if (last) last.innerHTML = '';
   const lk = document.getElementById('fkLock');
   if (lk) lk.disabled = true;
+  const sv = document.getElementById('fkSave');
+  if (sv) sv.disabled = true;
   setStatus(currentAnswer
     ? 'Play along to find the root, then click the key on the circle and Lock to check.'
     : 'Pick a clip in the player, play along to find the root, then click the key on the circle.');
@@ -263,6 +269,17 @@ export function renderFindKey() {
           Click a <b>major</b> key on the rim or a <b>minor</b> key on the inner ring.
           <span class="sw o"></span> majors <span class="sw g"></span> minors. Your played chords trace live.
         </div>
+        <details class="fk-curator">
+          <summary>✎ Curator — save keys for your clips</summary>
+          <div class="fk-cur-body">
+            <button id="fkSave" disabled>Save clicked key as this clip's answer</button>
+            <button id="fkExport">Export JSON</button>
+            <textarea id="fkExportOut" readonly placeholder="Exported KEY_BY_VIDEO appears here…"></textarea>
+            <button id="fkCopy">Copy</button>
+            <div class="fk-cur-note">Saved answers live in <b>this browser only</b>. Export &amp; paste into
+              <code>src/data/keyChallenges.js</code>, then redeploy, to share them with everyone.</div>
+          </div>
+        </details>
       </div>
     </div>`;
 
@@ -270,9 +287,65 @@ export function renderFindKey() {
     n.addEventListener('click', () => setGuess(n)));
   document.getElementById('fkLock').addEventListener('click', lock);
   document.getElementById('fkReset').addEventListener('click', reset);
+  document.getElementById('fkSave').addEventListener('click', saveAnswer);
+  document.getElementById('fkExport').addEventListener('click', exportAnswers);
+  document.getElementById('fkCopy').addEventListener('click', copyExport);
 
   reset();
   createPlayer();
+
+  // load this browser's curated answers, then refresh the current clip
+  loadFindKeyAnswers().then(a => {
+    savedAnswers = a || {};
+    if (active && currentVideoId) {
+      currentAnswer = answerFor(currentVideoId);
+      refreshNowPlaying();
+    }
+  });
+}
+
+// ---- curator: save / export ----
+function refreshNowPlaying() {
+  const np = document.getElementById('fkNowPlaying');
+  if (!np) return;
+  np.innerHTML = currentTitle
+    ? `▸ Now playing: <b>${escapeHtml(currentTitle)}</b>${currentAnswer ? '' : ' <span class="fk-dim">— no stored key (self-check)</span>'}`
+    : '';
+}
+
+function saveAnswer() {
+  if (!guess || !currentVideoId) return;
+  const a = { keyPc: guess.pc, keyMode: guess.mode, preferFlat: FLAT_PCS.has(guess.pc) };
+  savedAnswers = { ...savedAnswers, [currentVideoId]: a };
+  saveFindKeyAnswers(savedAnswers);
+  currentAnswer = a;
+  refreshNowPlaying();
+  setStatus(`<span class="fk-ok">Saved ${keyName(a)} as the answer for this clip.</span> It'll score automatically now.`);
+}
+
+function exportAnswers() {
+  const merged = { ...KEY_BY_VIDEO, ...savedAnswers };
+  const ids = Object.keys(merged);
+  const lines = ids.map(vid => {
+    const a = merged[vid];
+    return `  '${vid}': { keyPc: ${a.keyPc}, keyMode: '${a.keyMode}', preferFlat: ${!!a.preferFlat} },`;
+  });
+  const text = ids.length
+    ? `export const KEY_BY_VIDEO = {\n${lines.join('\n')}\n};`
+    : '// no answers saved yet — pick a key and Save it first';
+  const out = document.getElementById('fkExportOut');
+  if (out) out.value = text;
+}
+
+async function copyExport() {
+  const out = document.getElementById('fkExportOut');
+  if (!out || !out.value) exportAnswers();
+  try {
+    await navigator.clipboard.writeText(document.getElementById('fkExportOut').value);
+    setStatus('<span class="fk-ok">Copied — paste it into src/data/keyChallenges.js.</span>');
+  } catch (e) {
+    document.getElementById('fkExportOut').select();
+  }
 }
 
 export function stopFindKey() {

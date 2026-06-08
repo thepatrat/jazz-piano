@@ -117,3 +117,15 @@ export function loadPlanProgress() {
 export function savePlanProgress(progress) {
   return kvSet(PLAN_PROGRESS_KEY, progress);
 }
+
+// ---- Find the Key: locally-curated answers (per browser) ----
+// Map of YouTube videoId -> { keyPc, keyMode, preferFlat }. Layered over the
+// shipped KEY_BY_VIDEO at runtime; Export turns it into source to share.
+const FINDKEY_ANSWERS_KEY = 'findkey:answers';
+
+export function loadFindKeyAnswers() {
+  return kvGet(FINDKEY_ANSWERS_KEY, {});
+}
+export function saveFindKeyAnswers(map) {
+  return kvSet(FINDKEY_ANSWERS_KEY, map);
+}
